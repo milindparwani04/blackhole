@@ -109,7 +109,7 @@ Optional `.env` settings (see `config.example.env`): `PORT`, `DATA_DIR`, `DATABA
 | Playing on (D-05): pick PS5/PS4/etc. per game; trophies follow it | ✅ |
 | IGDB normal time-to-beat (D-07) | ✅ with IGDB keys |
 | TV: TVmaze search + season/episode import, per-episode watched toggles (out of order), bulk season/series with confirm + undo, unaired episodes blocked, specials excluded, runtime totals (labelled estimated when averaged), series auto-completes when all aired episodes are watched and reopens when new ones air (D-04) | ✅ |
-| TV ratings heatmap: S×E grid, documented legend, Ratings / My progress modes, keyboard arrows, list fallback, episode drill-down | ✅ IMDb ratings (official datasets); TVmaze only when IMDb has none (D-03) |
+| TV ratings heatmap: S×E grid, documented legend, Ratings / My progress modes, keyboard arrows, list fallback, episode drill-down | ✅ IMDb ratings only (official datasets); none shown when IMDb has none (D-03) |
 | Movies: TMDb search with runtime/director enrichment, Mark Watched, personal rating; IMDb rating + Rotten Tomatoes audience score in the Add dialog, lists and inspector; filter/sort by either (D-09) | ✅ search needs TMDb key |
 | Books: Open Library search, edition page count (labelled when it's a work median), page slider, Mark Finished | ✅ |
 | Backup (SQLite snapshot) and JSON export | ✅ (restore UI not built) |

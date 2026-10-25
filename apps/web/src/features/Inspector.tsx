@@ -160,7 +160,6 @@ type Act = (fn: () => Promise<MutationResult>, message?: string) => Promise<Muta
 function InspectorHead({ onClose }: { onClose: () => void }) {
   return (
     <div className="insp-head">
-      <span className="eyebrow">OBJECT INSPECTOR</span>
       <button className="icon-btn" onClick={onClose} aria-label="Close details">
         <CloseIcon />
       </button>

@@ -6,7 +6,7 @@ import { useApp } from '../context';
 const DECISIONS = [
   ['D-01', 'Where it runs', 'This PC only (loopback); personal, non-commercial'],
   ['D-02', 'Trophy lookup', 'Local SearXNG; parses guide summaries from PowerPyx, PSNProfiles, PlayStationTrophies, Knoef'],
-  ['D-03', 'Episode ratings', 'TVmaze community ratings, attributed'],
+  ['D-03', 'Episode ratings', 'IMDb episode ratings only; none shown when IMDb has none'],
   ['D-04', 'TV completion', 'Completed when every aired episode is watched; back in the Pit when new episodes air'],
   ['D-05', 'Trophy versions', 'Only the version you play (PS5 default, PS4 for older games); no regions'],
   ['D-06', 'Letterboxd import', 'Out of scope — movies start from scratch'],

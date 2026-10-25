@@ -227,4 +227,14 @@ INSERT INTO provider_registry VALUES
 UPDATE provider_registry SET capability = 'TV search, seasons, episodes; fallback episode ratings' WHERE provider = 'TVMAZE';
 `,
   },
+  {
+    version: 4,
+    name: 'IMDb is the only episode rating source',
+    sql: `
+-- D-03 revised: TVmaze episode ratings are no longer used, even as a fallback.
+DELETE FROM episode_ratings WHERE provider = 'TVMAZE';
+UPDATE provider_registry SET capability = 'TV episode ratings (heatmap) and movie ratings' WHERE provider = 'IMDB';
+UPDATE provider_registry SET capability = 'TV search, seasons, episodes' WHERE provider = 'TVMAZE';
+`,
+  },
 ];

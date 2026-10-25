@@ -99,7 +99,7 @@ export function Heatmap({ d, act, onClose }: { d: EntryDetail; act: Act; onClose
         </div>
 
         {mode === 'ratings' && !hasRatings && (
-          <div className="notice">Ratings unavailable for this show. No approved source has episode scores for it, so no colours are invented. Switch to “My progress”.</div>
+          <div className="notice">Ratings unavailable for this show. IMDb has no episode ratings for it yet (new shows can take a while), so no colours are invented. Switch to “My progress”.</div>
         )}
 
         <div className="heatmap-body">
