@@ -78,3 +78,14 @@
 - **Ticket 3 (PR #5):** My rating is a decimal input (0–10, rounded to 1 dp, empty clears, out-of-range reverts; saves on blur/Enter) instead of 10 stars. Removed the MINE heading, Priority, Owned and the History dropdown (undo still via toast). Priority/owned data still stored, just not shown in the panel. Owner wants the ★ kept in dashboard/library rating displays.
 - **Checks:** `tsc` clean, 63/63 tests, build OK. Panel checked in Chrome on the real library (view only, no data changed).
 - **Owner rule:** update this handoff with every task the owner asks for, unasked.
+
+## Update — 2026-10-25: pre-public security audit
+- Owner asked if making the GitHub repo public is safe. Scanned all 22 commits (every file ever tracked) for keys/tokens, local paths, emails and DB files: none found. Only test placeholders (`eyJ-long-v4-read-token`, `super-secret-value-123`). `.env`, `searxng/settings.yml`, `data/` were never committed and are git-ignored.
+- Exposed once public: commit author email (milindparwani@hotmail.co.uk) in 16 commits; GitHub username. Owner's call.
+- (Corrected: `assets/blackhole.ico` IS tracked; the scan had filtered out image files. No fix needed.)
+- No LICENSE file yet.
+
+## Update — 2026-10-25: distribution / API-key question (advice only, no code changed)
+- Owner asked about shipping as an .exe and whether users could skip API keys. Advised: Node SEA single exe is feasible (no native deps; `node:sqlite`). Do not embed owner keys (extractable). Options given: in-app key settings screen, or a small Cloudflare Worker proxy holding keys. Keyless already: Open Library, TVmaze, IMDb datasets. SearXNG/Docker is the big hurdle for exe users. Awaiting owner's choice.
+- Owner leaning to: no exe/proxy; public repo + README instructions, users clone and add own keys. Agreed it's the low-maintenance option. Pending before going public: LICENSE, optional email privacy.
+- Added MIT `LICENSE` (Copyright 2026 Milind Parwani) and `"license": "MIT"` in package.json. Icon item dropped (already tracked).

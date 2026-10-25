@@ -2,6 +2,7 @@
   "name": "blackhole",
   "version": "0.1.0",
   "private": true,
+  "license": "MIT",
   "description": "Local-first personal media backlog: games, movies, TV and books.",
   "type": "module",
   "engines": {
