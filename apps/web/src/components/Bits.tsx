@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import type { MediaItem, MovieRatings, Status } from '../../../../packages/shared/src/index';
 import { STATUS_LABEL } from '../format';
+import { useSettings } from '../settings';
 import { TypeIcon } from './Icons';
 
 export function Ring({ value, label }: { value: number; label: string }) {
@@ -82,6 +83,8 @@ export function ConfirmButton({ children, confirm, onConfirm, className = 'btn g
 
 /** IMDb (/10) and Rotten Tomatoes audience (%) side by side. Missing values show a dash, never a guess. */
 export function MovieRatingBadges({ ratings }: { ratings: MovieRatings | null | undefined }) {
+  const { showReviews } = useSettings();
+  if (!showReviews) return null;
   const imdb = ratings?.imdb;
   const rt = ratings?.rt_audience;
   const imdbTitle = imdb ? `IMDb ${imdb.score.toFixed(1)}/10${imdb.votes ? ` from ${imdb.votes.toLocaleString()} votes` : ''}` : 'IMDb rating unavailable';

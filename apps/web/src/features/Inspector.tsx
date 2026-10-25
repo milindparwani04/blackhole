@@ -5,10 +5,12 @@ import { useApp } from '../context';
 import { ConfirmButton, Cover, DifficultyBar, Empty } from '../components/Bits';
 import { CloseIcon, ExternalIcon, TrophyIcon } from '../components/Icons';
 import { fmtDate, fmtDateTime, fmtHours, fmtMinutes, fmtRange, pct, STATUS_LABEL, TYPE_LABEL } from '../format';
+import { useSettings } from '../settings';
 import { Heatmap } from './Heatmap';
 
 export function Inspector({ id }: { id: string }) {
   const { select, bump, notify, version } = useApp();
+  const { showReviews } = useSettings();
   const [d, setD] = useState<EntryDetail | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
@@ -134,7 +136,7 @@ export function Inspector({ id }: { id: string }) {
             {media.runtime_min && <div className="muted sm">Runtime {fmtMinutes(media.runtime_min)}</div>}
           </section>
         )}
-        {d.movie && <MovieRatingsPanel d={d} act={act} />}
+        {d.movie && showReviews && <MovieRatingsPanel d={d} act={act} />}
 
         <PersonalPanel d={d} act={act} />
         <MetadataEditor d={d} act={act} />
@@ -145,12 +147,15 @@ export function Inspector({ id }: { id: string }) {
               <button className="btn ghost sm" onClick={() => act(() => api.archive(id, false), 'Restored from archive')}>
                 Restore from archive
               </button>
-              <DeleteForever d={d} />
+              <RemoveFromPit d={d} />
             </>
           ) : (
-            <button className="btn ghost sm" onClick={() => act(() => api.archive(id, true), 'Archived')}>
-              Archive
-            </button>
+            <>
+              <button className="btn ghost sm" onClick={() => act(() => api.archive(id, true), 'Archived')}>
+                Archive
+              </button>
+              <RemoveFromPit d={d} />
+            </>
           )}
         </section>
       </div>
@@ -656,6 +661,7 @@ function MovieRatingsPanel({ d, act }: { d: EntryDetail; act: Act }) {
 }
 
 function TvPanel({ d, act }: { d: EntryDetail; act: Act }) {
+  const { showReviews } = useSettings();
   const tv = d.tv!;
   const id = d.entry.id;
   const regular = tv.seasons.filter((s) => !s.is_special);
@@ -757,7 +763,7 @@ function TvPanel({ d, act }: { d: EntryDetail; act: Act }) {
                       <span className="ep-title">{e.title ?? `Episode ${e.number}`}</span>
                     </label>
                     <span className="muted sm">{e.released ? fmtDate(e.airdate) : e.airdate ? `Airs ${fmtDate(e.airdate)}` : 'TBA'}</span>
-                    {e.rating && <span className="ep-rating" title={`${e.rating.provider} rating`}>{e.rating.score.toFixed(1)}</span>}
+                    {e.rating && showReviews && <span className="ep-rating" title={`${e.rating.provider} rating`}>{e.rating.score.toFixed(1)}</span>}
                   </li>
                 ))}
               </ol>
@@ -975,24 +981,17 @@ function MetadataEditor({ d, act }: { d: EntryDetail; act: Act }) {
   );
 }
 
-function DeleteForever({ d }: { d: EntryDetail }) {
+/** Deletes the entry and its progress, notes and history for good (no undo). One extra click guards against slips. */
+function RemoveFromPit({ d }: { d: EntryDetail }) {
   const { select, bump, notify } = useApp();
-  const [open, setOpen] = useState(false);
-  const [typed, setTyped] = useState('');
-  if (!open)
-    return (
-      <button className="btn danger-ghost sm" onClick={() => setOpen(true)}>
-        Delete permanently…
-      </button>
-    );
   return (
-    <form
-      className="delete-box"
-      onSubmit={async (e) => {
-        e.preventDefault();
+    <ConfirmButton
+      className="btn danger-ghost sm"
+      confirm="Remove forever"
+      onConfirm={async () => {
         try {
-          await api.remove(d.entry.id, typed);
-          notify(`“${d.media.title}” deleted permanently`);
+          await api.remove(d.entry.id);
+          notify(`“${d.media.title}” removed from the Pit`);
           select(null);
           bump();
         } catch (err) {
@@ -1000,16 +999,7 @@ function DeleteForever({ d }: { d: EntryDetail }) {
         }
       }}
     >
-      <p className="sm">This cannot be undone. Progress, notes and history for this entry will be erased. Type the title to confirm.</p>
-      <input className="input" value={typed} onChange={(e) => setTyped(e.target.value)} aria-label="Type the title to confirm" placeholder={d.media.title} />
-      <div className="row gap">
-        <button className="btn danger sm" disabled={typed !== d.media.title}>
-          Delete forever
-        </button>
-        <button type="button" className="btn ghost sm" onClick={() => setOpen(false)}>
-          Cancel
-        </button>
-      </div>
-    </form>
+      Remove from Pit
+    </ConfirmButton>
   );
 }

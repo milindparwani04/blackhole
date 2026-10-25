@@ -74,7 +74,7 @@ export const api = {
     req<MutationResult>('POST', `/api/library/${id}/complete`, { kind, done }),
   status: (id: string, status: Status) => req<MutationResult>('POST', `/api/library/${id}/status`, { status }),
   archive: (id: string, archived: boolean) => req<MutationResult>('POST', `/api/library/${id}/archive`, { archived }),
-  remove: (id: string, confirm_title: string) => req<{ deleted: true }>('DELETE', `/api/library/${id}`, { confirm_title }),
+  remove: (id: string) => req<{ deleted: true }>('DELETE', `/api/library/${id}`),
   undo: (eventId: string) => req<MutationResult>('POST', `/api/events/${eventId}/undo`),
   setTime: (id: string, body: Record<string, unknown>) => req<MutationResult>('PUT', `/api/games/${id}/times`, body),
   setTrophy: (id: string, body: Record<string, unknown>) => req<MutationResult>('PUT', `/api/games/${id}/trophies`, body),

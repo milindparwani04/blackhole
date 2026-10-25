@@ -347,12 +347,10 @@ export function registerRoutes(app: FastifyInstance, db: DB, opts: { dataDir: st
     return result(id, eventId);
   });
 
+  // "Remove from Pit": permanent, from the backlog or the archive (owner, 25/10/2026: no type-the-title step).
   app.delete('/api/library/:id', async (req) => {
     const { id } = parse(idParam, req.params);
-    const b = parse(z.object({ confirm_title: z.string() }), req.body);
     const d = loadDetail(db, id);
-    if (!d.entry.archived_at) throw new AppError('CONFLICT', 'Archive the entry before deleting it permanently');
-    if (b.confirm_title.trim() !== d.media.title) throw new AppError('VALIDATION_ERROR', 'Type the exact title to confirm permanent deletion');
     run(db, 'DELETE FROM media_items WHERE id = :id', { id: d.media.id });
     audit('PERMANENT_DELETE', { title: d.media.title, type: d.media.type });
     return { deleted: true };
