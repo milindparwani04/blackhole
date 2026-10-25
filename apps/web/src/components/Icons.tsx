@@ -57,13 +57,13 @@ export function Logo({ size = 44 }: { size?: number }) {
       <defs>
         <radialGradient id="bh-glow" cx="50%" cy="50%" r="50%">
           <stop offset="55%" stopColor="#000" />
-          <stop offset="80%" stopColor="#c4b5fd" stopOpacity="0.55" />
-          <stop offset="100%" stopColor="#8b5cf6" stopOpacity="0" />
+          <stop offset="80%" style={{ stopColor: 'var(--accent-2)' }} stopOpacity="0.55" />
+          <stop offset="100%" style={{ stopColor: 'var(--accent)' }} stopOpacity="0" />
         </radialGradient>
       </defs>
       <circle cx="32" cy="32" r="22" fill="url(#bh-glow)" />
-      <circle cx="32" cy="32" r="14" fill="#000" stroke="#ede9fe" strokeWidth="1.6" />
-      <ellipse cx="32" cy="33" rx="29" ry="6.5" fill="none" stroke="#a78bfa" strokeWidth="1.4" transform="rotate(-14 32 33)" opacity="0.9" />
+      <circle cx="32" cy="32" r="14" fill="#000" style={{ stroke: 'var(--text)' }} strokeWidth="1.6" />
+      <ellipse cx="32" cy="33" rx="29" ry="6.5" fill="none" style={{ stroke: 'var(--accent-2)' }} strokeWidth="1.4" transform="rotate(-14 32 33)" opacity="0.9" />
     </svg>
   );
 }
