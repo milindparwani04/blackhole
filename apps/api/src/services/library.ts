@@ -15,6 +15,7 @@ import type {
   TvProgress,
 } from '../../../../packages/shared/src/index.js';
 import { all, get, nowIso, run, tx, uuid, type DB } from '../db/db.js';
+import { allMovieRatings, movieRatingAttribution, movieRatings } from './movies.js';
 import { AppError } from '../security/errors.js';
 import { latestJob } from './trophies.js';
 
@@ -390,14 +391,20 @@ export function getEntryVersion(db: DB, entryId: string) {
 export function loadSeasons(db: DB, mediaId: string, entryId: string): { seasons: Season[]; progress: TvProgress; ratings_attribution: string | null } {
   const today = todayLocal();
   const seasons = all<any>(db, 'SELECT * FROM tv_seasons WHERE media_id = :m ORDER BY is_special DESC, number', { m: mediaId });
+  // One rating source per show so the heatmap never mixes scales of opinion: IMDb when it has any, else TVmaze.
+  const ratingProvider = get(db, `SELECT 1 FROM episode_ratings r JOIN tv_episodes e ON e.id = r.episode_id WHERE e.media_id = :m AND r.provider = 'IMDB' LIMIT 1`, {
+    m: mediaId,
+  })
+    ? 'IMDB'
+    : 'TVMAZE';
   const eps = all<any>(
     db,
     `SELECT e.*, w.watched, w.watched_at, r.provider AS r_provider, r.score AS r_score, r.scale AS r_scale, r.fetched_at AS r_fetched
      FROM tv_episodes e
      LEFT JOIN episode_watch_states w ON w.episode_id = e.id AND w.entry_id = :entry
-     LEFT JOIN episode_ratings r ON r.episode_id = e.id
+     LEFT JOIN episode_ratings r ON r.episode_id = e.id AND r.provider = :rp
      WHERE e.media_id = :m ORDER BY e.number`,
-    { m: mediaId, entry: entryId },
+    { m: mediaId, entry: entryId, rp: ratingProvider },
   );
   const media = get<any>(db, 'SELECT runtime_min FROM media_items WHERE id = :m', { m: mediaId });
   const progress: TvProgress = {
@@ -457,8 +464,12 @@ export function loadSeasons(db: DB, mediaId: string, entryId: string): { seasons
   // D-04 is unresolved: we only *suggest* completion, never auto-complete.
   // Kept for the case where a show was dropped/paused with everything watched; completion itself is automatic (D-04).
   progress.suggest_complete = progress.eligible > 0 && progress.watched === progress.eligible && !['COMPLETED', 'DROPPED'].includes(entry?.status);
-  const rated = eps.find((e) => e.r_provider === 'TVMAZE');
-  return { seasons: out, progress, ratings_attribution: rated ? 'Episode ratings: TVmaze user ratings (/10), CC BY-SA 4.0' : null };
+  const rated = eps.some((e) => e.r_provider);
+  const attribution =
+    ratingProvider === 'IMDB'
+      ? 'Episode ratings: IMDb user ratings (/10, updated daily). Information courtesy of IMDb (https://www.imdb.com). Used with permission'
+      : 'Episode ratings: TVmaze user ratings (/10), CC BY-SA 4.0';
+  return { seasons: out, progress, ratings_attribution: rated ? attribution : null };
 }
 
 export function setEpisodeWatched(db: DB, entryId: string, episodeId: string, watched: boolean) {
@@ -582,6 +593,10 @@ export function loadDetail(db: DB, entryId: string): EntryDetail {
     };
   }
   if (media.type === 'TV') detail.tv = loadSeasons(db, media.id, entryId);
+  if (media.type === 'MOVIE') {
+    const ratings = movieRatings(db, media.id);
+    detail.movie = { ratings, attribution: movieRatingAttribution(ratings) };
+  }
   if (media.type === 'BOOK') {
     const b = get<any>(db, 'SELECT * FROM book_editions WHERE media_id = :id', { id: media.id });
     const edition: BookEdition = { pages: b?.pages ?? null, isbn: b?.isbn ?? null, format: b?.format ?? null, pages_source: b?.pages_source ?? null };
@@ -615,6 +630,7 @@ export function listEntries(db: DB, f: ListFilter): LibraryRow[] {
     { type: f.type, status: f.status, q: f.q ? `%${f.q.replace(/[\\%_]/g, (c) => '\\' + c)}%` : undefined },
   );
   const trophies = all<any>(db, 'SELECT * FROM trophy_guides ORDER BY platform DESC');
+  const ratings = allMovieRatings(db);
   const tvCounts = all<any>(
     db,
     `SELECT e.media_id, le.id AS entry_id,
@@ -642,6 +658,7 @@ export function listEntries(db: DB, f: ListFilter): LibraryRow[] {
       platinum: media.type !== 'GAME' ? null : t ? t.platinum : ps ? 'UNKNOWN' : 'NOT_APPLICABLE',
       tv: media.type === 'TV' ? { eligible: tv?.eligible ?? 0, watched: tv?.watched ?? 0, seasons: tv?.seasons ?? 0 } : null,
       pages: r.pages ?? null,
+      ratings: media.type === 'MOVIE' ? (ratings.get(media.id) ?? { imdb: null, rt_audience: null }) : null,
     };
   });
 }

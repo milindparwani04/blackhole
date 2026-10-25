@@ -2,11 +2,11 @@ import { useEffect, useMemo, useState } from 'react';
 import { STATUSES, type LibraryRow, type MediaType, type Status } from '../../../../packages/shared/src/index';
 import { api } from '../api';
 import { useApp } from '../context';
-import { Cover, DifficultyBar, Empty, StatusPill } from '../components/Bits';
+import { Cover, DifficultyBar, Empty, MovieRatingBadges, StatusPill } from '../components/Bits';
 import { TypeIcon } from '../components/Icons';
 import { fmtDate, fmtHours, fmtRange, pct, STATUS_LABEL, TYPE_LABEL } from '../format';
 
-type Sort = 'added' | 'title' | 'normal' | 'platinum' | 'difficulty' | 'year';
+type Sort = 'added' | 'title' | 'normal' | 'platinum' | 'difficulty' | 'year' | 'imdb' | 'rt';
 
 export function LibraryView({ type, archived }: { type?: MediaType; archived?: boolean }) {
   const { version, openAdd } = useApp();
@@ -16,6 +16,8 @@ export function LibraryView({ type, archived }: { type?: MediaType; archived?: b
   const [text, setText] = useState('');
   const [sort, setSort] = useState<Sort>('added');
   const [maxPlat, setMaxPlat] = useState('');
+  const [minImdb, setMinImdb] = useState('');
+  const [minRt, setMinRt] = useState('');
   const [includeUnknown, setIncludeUnknown] = useState(true);
 
   useEffect(() => {
@@ -39,6 +41,8 @@ export function LibraryView({ type, archived }: { type?: MediaType; archived?: b
         return h == null ? includeUnknown : h <= cap;
       });
     }
+    if (minImdb) list = list.filter((r) => (r.ratings?.imdb ? r.ratings.imdb.score >= Number(minImdb) : includeUnknown));
+    if (minRt) list = list.filter((r) => (r.ratings?.rt_audience ? r.ratings.rt_audience.score >= Number(minRt) : includeUnknown));
     const num = (v: number | null | undefined) => (v == null ? Infinity : v);
     const sorted = [...list];
     if (sort === 'title') sorted.sort((a, b) => a.media.title.localeCompare(b.media.title));
@@ -46,9 +50,12 @@ export function LibraryView({ type, archived }: { type?: MediaType; archived?: b
     if (sort === 'year') sorted.sort((a, b) => num(a.media.year == null ? null : -a.media.year) - num(b.media.year == null ? null : -b.media.year));
     if (sort === 'normal') sorted.sort((a, b) => num(a.normal_hours) - num(b.normal_hours));
     if (sort === 'platinum') sorted.sort((a, b) => num(a.platinum_hours?.max ?? a.platinum_hours?.min) - num(b.platinum_hours?.max ?? b.platinum_hours?.min));
+    // Highest rated first; unknown last.
+    if (sort === 'imdb') sorted.sort((a, b) => num(a.ratings?.imdb ? -a.ratings.imdb.score : null) - num(b.ratings?.imdb ? -b.ratings.imdb.score : null));
+    if (sort === 'rt') sorted.sort((a, b) => num(a.ratings?.rt_audience ? -a.ratings.rt_audience.score : null) - num(b.ratings?.rt_audience ? -b.ratings.rt_audience.score : null));
     if (sort === 'difficulty') sorted.sort((a, b) => num(a.difficulty?.max ?? a.difficulty?.min) - num(b.difficulty?.max ?? b.difficulty?.min));
     return sorted;
-  }, [rows, text, platform, sort, maxPlat, includeUnknown]);
+  }, [rows, text, platform, sort, maxPlat, minImdb, minRt, includeUnknown]);
 
   const done = (rows ?? []).filter((r) => r.entry.status === 'COMPLETED').length;
   const title = archived ? 'ARCHIVE' : `${TYPE_LABEL[type!].one.toUpperCase()} BACKLOG`;
@@ -106,6 +113,31 @@ export function LibraryView({ type, archived }: { type?: MediaType; archived?: b
             )}
           </>
         )}
+        {type === 'MOVIE' && (
+          <>
+            <select className="input" value={minImdb} onChange={(e) => setMinImdb(e.target.value)} aria-label="Minimum IMDb rating">
+              <option value="">Any IMDb rating</option>
+              {[6, 7, 7.5, 8, 8.5].map((v) => (
+                <option key={v} value={v}>
+                  IMDb ≥ {v.toFixed(1)}
+                </option>
+              ))}
+            </select>
+            <select className="input" value={minRt} onChange={(e) => setMinRt(e.target.value)} aria-label="Minimum Rotten Tomatoes audience score">
+              <option value="">Any RT audience score</option>
+              {[60, 70, 80, 90].map((v) => (
+                <option key={v} value={v}>
+                  RT audience ≥ {v}%
+                </option>
+              ))}
+            </select>
+            {(minImdb || minRt) && (
+              <label className="check">
+                <input type="checkbox" checked={includeUnknown} onChange={(e) => setIncludeUnknown(e.target.checked)} /> Include unrated
+              </label>
+            )}
+          </>
+        )}
         <span className="spacer" />
         <select className="input" value={sort} onChange={(e) => setSort(e.target.value as Sort)} aria-label="Sort">
           <option value="added">Sort: Date added</option>
@@ -116,6 +148,12 @@ export function LibraryView({ type, archived }: { type?: MediaType; archived?: b
               <option value="normal">Sort: Normal time</option>
               <option value="platinum">Sort: Platinum hours</option>
               <option value="difficulty">Sort: Difficulty</option>
+            </>
+          )}
+          {type === 'MOVIE' && (
+            <>
+              <option value="imdb">Sort: IMDb rating</option>
+              <option value="rt">Sort: RT audience</option>
             </>
           )}
         </select>
@@ -152,6 +190,7 @@ export function LibraryTable({ type, rows }: { type?: MediaType; rows: LibraryRo
             {type === 'MOVIE' && (
               <>
                 <th>Runtime</th>
+                <th>Ratings</th>
                 <th>My rating</th>
               </>
             )}
@@ -203,6 +242,9 @@ export function LibraryTable({ type, rows }: { type?: MediaType; rows: LibraryRo
               {type === 'MOVIE' && (
                 <>
                   <td>{r.media.runtime_min ? `${Math.floor(r.media.runtime_min / 60)}h ${r.media.runtime_min % 60}m` : '—'}</td>
+                  <td>
+                    <MovieRatingBadges ratings={r.ratings} />
+                  </td>
                   <td>{r.entry.personal_rating != null ? <span className="my-rating">★ {r.entry.personal_rating}</span> : '—'}</td>
                 </>
               )}

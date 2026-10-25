@@ -3,7 +3,7 @@ import type { LibraryRow, MediaType } from '../../../../packages/shared/src/inde
 import { backlogSlots } from '../../../../packages/shared/src/backlog';
 import { api, type Stats } from '../api';
 import { useApp } from '../context';
-import { Cover, DifficultyBar, Empty, Ring } from '../components/Bits';
+import { Cover, DifficultyBar, Empty, MovieRatingBadges, Ring } from '../components/Bits';
 import { TypeIcon } from '../components/Icons';
 import { fmtHours, fmtRange, pct, TYPE_LABEL } from '../format';
 
@@ -147,6 +147,7 @@ function sideInfo(r: LibraryRow) {
       </span>
     );
   }
+  if (r.media.type === 'MOVIE') return <MovieRatingBadges ratings={r.ratings} />;
   if (r.media.type === 'TV' && r.tv?.eligible) return <span className="sm">{r.tv.watched}/{r.tv.eligible} ep</span>;
   if (r.media.type === 'BOOK' && r.pages && r.entry.current_page) return <span className="sm">{pct(r.entry.current_page, r.pages)}%</span>;
   if (r.entry.personal_rating != null) return <span className="my-rating">★ {r.entry.personal_rating}</span>;

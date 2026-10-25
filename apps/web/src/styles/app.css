@@ -55,7 +55,7 @@ h1, h2, h3 { margin: 0; font-weight: 500; }
 .shell.with-inspector { grid-template-columns: 220px minmax(0, 1fr) 400px; grid-template-areas: 'top top top' 'side main insp'; }
 .topbar { grid-area: top; display: flex; align-items: center; gap: 32px; padding: 0 20px; border-bottom: 1px solid var(--line); }
 .sidebar { grid-area: side; border-right: 1px solid var(--line); padding: 20px 0; overflow-y: auto; display: flex; flex-direction: column; }
-.main { grid-area: main; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 16px; outline: none; }
+.main { grid-area: main; overflow-y: auto; padding: 20px 24px; display: flex; flex-direction: column; gap: 20px; outline: none; }
 .inspector { grid-area: insp; overflow-y: auto; border-radius: 0; border-width: 0 0 0 1px; }
 
 /* ---------- topbar ---------- */
@@ -164,7 +164,8 @@ code { font-family: var(--font); color: var(--accent-2); }
 .cover.lg { width: 112px; height: 156px; }
 
 /* ---------- dashboard ---------- */
-.stat-cards { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.dashboard { display: flex; flex-direction: column; gap: 24px; }
+.stat-cards { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 20px; }
 .stat-card { display: flex; align-items: center; gap: 18px; text-decoration: none; color: inherit; }
 .stat-card:hover { border-color: var(--line-2); }
 .stat-card > div:nth-child(2) { flex: 1; }
@@ -201,6 +202,10 @@ code { font-family: var(--font); color: var(--accent-2); }
 .table tbody tr.selected { background: var(--accent-soft); }
 .table .num { width: 36px; }
 .title-cell { display: flex; align-items: center; gap: 12px; }
+.rating-badges { display: inline-flex; gap: 12px; align-items: center; white-space: nowrap; font-size: 12px; }
+.rb b { font-weight: 600; font-size: 10px; letter-spacing: 0.08em; color: var(--warn); margin-right: 2px; }
+.rb.none { color: var(--dim); }
+.rating-preview { margin-top: 6px; display: block; }
 .title-cell > span { display: flex; flex-direction: column; }
 .title { font-size: 13px; color: var(--text); }
 .diff { display: inline-flex; flex-direction: column; gap: 3px; }
@@ -387,7 +392,7 @@ details[open] > summary::before { content: '– '; }
 .pick-chip.error { border-color: var(--bad); color: var(--bad); }
 .pick-chip button { background: none; border: 0; color: inherit; padding: 0 4px; font-size: 14px; line-height: 1; }
 /* home: four backlog panels, 5 slots each, fits one screen */
-.backlog-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.backlog-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px 20px; }
 .backlog-panel { display: flex; flex-direction: column; min-width: 0; }
 .backlog-panel .panel-head { margin-bottom: 8px; }
 .backlog-list { list-style: none; padding: 0; margin: 0; }

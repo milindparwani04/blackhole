@@ -2,6 +2,7 @@ import type {
   EntryDetail,
   LibraryRow,
   MediaType,
+  MovieRatings,
   MutationResult,
   SearchResponse,
   Status,
@@ -88,6 +89,8 @@ export const api = {
   watchSeason: (id: string, season: number | 'all', watched: boolean) =>
     req<MutationResult>('POST', `/api/tv/${id}/seasons/${season}/watch`, { watched }),
   syncTv: (id: string) => req<MutationResult>('POST', `/api/tv/${id}/sync`),
+  refreshMovieRatings: (id: string) => req<MutationResult & { errors: string[] }>('POST', `/api/movies/${id}/ratings/refresh`),
+  previewMovieRatings: (tmdbId: string) => req<MovieRatings>('GET', `/api/movies/preview-ratings?tmdb=${encodeURIComponent(tmdbId)}`),
   setEdition: (id: string, body: Record<string, unknown>) => req<MutationResult>('PUT', `/api/books/${id}/edition`, body),
   search: (type: MediaType, q: string) => req<SearchResponse>('GET', `/api/search?type=${type}&q=${encodeURIComponent(q)}`),
   backup: () => req<{ file: string; bytes: number }>('POST', '/api/backup'),

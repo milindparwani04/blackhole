@@ -4,8 +4,9 @@ import { AppError } from '../security/errors.js';
  * Owner decision 2026-10-25: Blackhole may read the single guide page that already matched a game, to take the
  * values from its roadmap box. Rules: allowlisted guide hosts only, robots.txt honoured, bot checks (Cloudflare etc.)
  * are reported and never worked around, size/time capped, requests spaced out.
+ * Owner decision 2026-10-25: the same rules cover one Rotten Tomatoes /m/ page per movie (audience score).
  */
-const PAGE_HOSTS = new Set(['www.powerpyx.com', 'powerpyx.com', 'knoef.info', 'www.knoef.info', 'www.playstationtrophies.org', 'playstationtrophies.org', 'psnprofiles.com', 'www.psnprofiles.com']);
+const PAGE_HOSTS = new Set(['www.powerpyx.com', 'powerpyx.com', 'knoef.info', 'www.knoef.info', 'www.playstationtrophies.org', 'playstationtrophies.org', 'psnprofiles.com', 'www.psnprofiles.com', 'www.rottentomatoes.com']);
 const UA = 'Blackhole/0.1 (local personal media library)';
 const MAX_BYTES = 2_000_000;
 const DAY = 24 * 60 * 60 * 1000;

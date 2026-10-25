@@ -130,6 +130,7 @@ export function Inspector({ id }: { id: string }) {
             {media.runtime_min && <div className="muted sm">Runtime {fmtMinutes(media.runtime_min)}</div>}
           </section>
         )}
+        {d.movie && <MovieRatingsPanel d={d} act={act} />}
 
         <PersonalPanel d={d} act={act} />
         <MetadataEditor d={d} act={act} />
@@ -628,6 +629,68 @@ function TrophyForm({ d, initial, onDone, act }: { d: EntryDetail; initial: Trop
 }
 
 // ---------------- tv ----------------
+
+function MovieRatingsPanel({ d, act }: { d: EntryDetail; act: Act }) {
+  const { notify } = useApp();
+  const [busy, setBusy] = useState(false);
+  const { imdb, rt_audience: rt } = d.movie!.ratings;
+  return (
+    <section className="insp-section">
+      <div className="row between">
+        <h3 className="h-sub">RATINGS</h3>
+        <button
+          className="btn ghost sm"
+          disabled={busy}
+          onClick={async () => {
+            setBusy(true);
+            const r = (await act(() => api.refreshMovieRatings(d.entry.id))) as (MutationResult & { errors?: string[] }) | null;
+            if (r) notify(r.errors?.length ? r.errors.join(' · ') : 'Ratings refreshed', { error: !!r.errors?.length });
+            setBusy(false);
+          }}
+        >
+          {busy ? '…' : '↻ Refresh'}
+        </button>
+      </div>
+      <dl className="facts">
+        <dt>IMDb</dt>
+        <dd>
+          {imdb ? (
+            <>
+              {imdb.score.toFixed(1)} / 10 {imdb.votes ? <span className="muted sm">({imdb.votes.toLocaleString()} votes)</span> : null}{' '}
+              {imdb.url && (
+                <a href={imdb.url} target="_blank" rel="noreferrer noopener" aria-label="Open on IMDb">
+                  <ExternalIcon />
+                </a>
+              )}
+            </>
+          ) : (
+            <span className="muted">Unavailable</span>
+          )}
+        </dd>
+        <dt>RT audience</dt>
+        <dd>
+          {rt ? (
+            <>
+              🍿 {rt.score}% {rt.label && <span className="muted sm">({rt.label})</span>}{' '}
+              {rt.url && (
+                <a href={rt.url} target="_blank" rel="noreferrer noopener" aria-label="Open on Rotten Tomatoes">
+                  <ExternalIcon />
+                </a>
+              )}
+            </>
+          ) : (
+            <span className="muted">Unavailable</span>
+          )}
+        </dd>
+      </dl>
+      {d.movie!.attribution.map((a) => (
+        <div key={a} className="source-line">
+          {a}
+        </div>
+      ))}
+    </section>
+  );
+}
 
 function TvPanel({ d, act }: { d: EntryDetail; act: Act }) {
   const tv = d.tv!;

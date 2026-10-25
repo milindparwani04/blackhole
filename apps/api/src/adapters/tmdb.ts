@@ -24,6 +24,7 @@ interface TmdbMovie {
 
 interface TmdbDetail extends TmdbMovie {
   runtime?: number | null;
+  imdb_id?: string | null;
   genres?: { id: number; name: string }[];
   credits?: { crew?: { job: string; name: string }[] };
 }
@@ -60,14 +61,17 @@ export async function searchMovies(q: string): Promise<SearchResult[]> {
   }));
 }
 
-/** Runtime and director only come from the detail endpoint. */
-export async function movieDetail(id: string): Promise<{ runtime_min: number | null; director: string | null; genres: string[] }> {
+/** Runtime, director and the IMDb ID only come from the detail endpoint. */
+export async function movieDetail(id: string): Promise<{ runtime_min: number | null; director: string | null; genres: string[]; imdb_id: string | null; title: string; year: number | null }> {
   if (!/^\d+$/.test(id)) throw new AppError('VALIDATION_ERROR', 'Invalid TMDb id');
   const d = await tmdb<TmdbDetail>(`movie/${id}`, { append_to_response: 'credits', language: 'en-GB' });
   return {
     runtime_min: d.runtime && d.runtime > 0 ? d.runtime : null,
     director: d.credits?.crew?.find((c) => c.job === 'Director')?.name ?? null,
     genres: (d.genres ?? []).map((g) => g.name).slice(0, 4),
+    imdb_id: d.imdb_id && /^tt\d{7,10}$/.test(d.imdb_id) ? d.imdb_id : null,
+    title: d.title,
+    year: d.release_date ? Number(d.release_date.slice(0, 4)) || null : null,
   };
 }
 
