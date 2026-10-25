@@ -643,6 +643,7 @@ export function registerRoutes(app: FastifyInstance, db: DB, opts: { dataDir: st
       'tv_episodes',
       'episode_watch_states',
       'episode_ratings',
+      'media_ratings',
       'book_editions',
     ];
     const schema = get<{ v: number }>(db, 'SELECT MAX(version) AS v FROM schema_migrations')?.v;

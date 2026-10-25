@@ -63,7 +63,11 @@ export function tx<T>(db: DB, fn: () => T): T {
     db.exec(`RELEASE ${sp}`);
     return result;
   } catch (err) {
-    db.exec(`ROLLBACK TO ${sp}; RELEASE ${sp}`);
+    try {
+      db.exec(`ROLLBACK TO ${sp}; RELEASE ${sp}`);
+    } catch {
+      // SQLite already rolled the whole transaction back (e.g. SQLITE_FULL); report the original error.
+    }
     throw err;
   }
 }

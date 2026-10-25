@@ -216,3 +216,15 @@ describe('books', () => {
     expect(f.body.detail.entry.status).toBe('COMPLETED');
   });
 });
+
+describe('audit fixes', () => {
+  it('accepts the IPv6 loopback host it can listen on', async () => {
+    const res = await app.inject({ method: 'GET', url: '/api/health', headers: { host: `[::1]:${PORT}` } });
+    expect(res.statusCode).toBe(200);
+  });
+  it('export includes fetched movie ratings', async () => {
+    const res = await call('GET', '/api/export');
+    expect(res.status).toBe(200);
+    expect(res.body.data).toHaveProperty('media_ratings');
+  });
+});

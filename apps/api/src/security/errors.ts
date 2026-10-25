@@ -8,6 +8,7 @@ const STATUS: Record<ApiErrorCode, number> = {
   RATE_LIMITED: 429,
   PERMISSION_REQUIRED: 403,
   FORBIDDEN_ORIGIN: 403,
+  INTERNAL_ERROR: 500,
 };
 
 export class AppError extends Error {

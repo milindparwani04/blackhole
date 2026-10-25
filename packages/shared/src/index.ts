@@ -22,7 +22,8 @@ export type ApiErrorCode =
   | 'SOURCE_UNAVAILABLE'
   | 'RATE_LIMITED'
   | 'PERMISSION_REQUIRED'
-  | 'FORBIDDEN_ORIGIN';
+  | 'FORBIDDEN_ORIGIN'
+  | 'INTERNAL_ERROR';
 
 export interface ApiError {
   error: { code: ApiErrorCode; message: string; requestId: string };
