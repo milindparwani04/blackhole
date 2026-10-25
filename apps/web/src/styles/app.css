@@ -107,7 +107,7 @@ h1, h2, h3 { margin: 0; font-weight: 500; }
 .spacer { flex: 1; }
 .stack { display: flex; flex-direction: column; gap: 10px; }
 .stack-lg { display: flex; flex-direction: column; gap: 16px; }
-.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 label { display: flex; flex-direction: column; gap: 4px; font-size: 11px; color: var(--muted); letter-spacing: 0.04em; }
 .check { flex-direction: row; align-items: center; gap: 6px; }
 .input { background: var(--bg); border: 1px solid var(--line-2); border-radius: var(--radius); padding: 7px 10px; color: var(--text); min-width: 0; font-size: 12.5px; }
