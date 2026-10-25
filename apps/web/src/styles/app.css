@@ -448,3 +448,15 @@ details[open] > summary::before { content: '– '; }
 .setting { display: flex; justify-content: space-between; align-items: center; gap: 24px; padding: 14px 0; border-top: 1px solid var(--line); flex-wrap: wrap; }
 .setting > div:first-child { max-width: 560px; display: flex; flex-direction: column; gap: 4px; }
 .setting-toggle { flex: 0 0 auto; }
+
+/* ---------- import ---------- */
+.import-sources { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 12px; margin-top: 12px; }
+.import-source { display: flex; flex-direction: column; gap: 8px; border: 1px solid var(--line); padding: 12px; }
+.import-source .row { margin-top: auto; }
+.import-input { flex: 1; min-width: 0; }
+label.btn.disabled { opacity: 0.5; pointer-events: none; }
+.import-progress { display: flex; flex-direction: column; gap: 6px; margin-top: 12px; }
+.import-review { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; }
+.import-list { max-height: 420px; overflow-y: auto; border: 1px solid var(--line); }
+.import-list tr.dim { opacity: 0.45; }
+.import-list td { vertical-align: middle; }

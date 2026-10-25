@@ -256,3 +256,40 @@ export interface TrophyJob {
   reverted_at: string | null;
   created_at: string;
 }
+
+
+/** One film/book read from Letterboxd or a Goodreads export, with its provider match (if any). Nothing is stored until imported. */
+export interface ImportItem {
+  /** Unique within one preview (Letterboxd slug / Goodreads book id). */
+  key: string;
+  source: 'LETTERBOXD' | 'GOODREADS';
+  type: 'MOVIE' | 'BOOK';
+  title: string;
+  year: number | null;
+  creator: string | null;
+  /** The owner's rating converted to /10 (Letterboxd half stars → 1 point, Goodreads stars → 2 points); null when unrated. */
+  rating: number | null;
+  status: Status;
+  /** Date finished when the source records one (Goodreads "Date Read"), else null. Never guessed. */
+  completed_at: string | null;
+  pages: number | null;
+  isbn: string | null;
+  source_url: string | null;
+  match: { provider: 'TMDB' | 'OPENLIBRARY'; external_id: string; title: string; year: number | null; cover_url: string | null; synopsis: string | null; genres: string[] } | null;
+  /** Entry id when this title is already in the Pit. */
+  in_pit: string | null;
+}
+
+export interface ImportJob {
+  id: string;
+  kind: 'PREVIEW' | 'IMPORT';
+  phase: string;
+  done: number;
+  total: number;
+  finished: boolean;
+  error: string | null;
+  /** Shown with the preview, e.g. when the source only exposed part of the list. */
+  notice: string | null;
+  items: ImportItem[] | null;
+  result: { added: number; skipped: number; failed: string[] } | null;
+}

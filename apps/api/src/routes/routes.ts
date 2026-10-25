@@ -14,6 +14,8 @@ import { movieDetail, searchMovies, testTmdb, TMDB_ATTRIBUTION } from '../adapte
 import { igdbConfigured, searxngUrl, tmdbConfigured } from '../config.js';
 import { searxReachable, testSearx } from '../adapters/searxng.js';
 import { applyJob, revertJob, runJob } from '../services/trophies.js';
+import { getImportJob, startGoodreadsPreview, startImport, startLetterboxdExportPreview, startLetterboxdPreview } from '../services/imports.js';
+import { letterboxdUser } from '../adapters/letterboxd.js';
 import { enrichNewGame, queueTrophyLookup, refreshIgdbTime } from '../services/games.js';
 import {
   addToPit,
@@ -245,6 +247,66 @@ export function registerRoutes(app: FastifyInstance, db: DB, opts: { dataDir: st
   });
 
   app.get('/api/library/:id', async (req) => loadDetail(db, parse(idParam, req.params).id));
+
+  // ---- one-off imports: preview (read + match, nothing written), then import what the owner kept ticked ----
+  app.post('/api/import/letterboxd/preview', async (req, reply) => {
+    const b = parse(z.object({ profile: z.string().min(1).max(300) }), req.body);
+    reply.code(202);
+    return startLetterboxdPreview(db, letterboxdUser(b.profile));
+  });
+
+  // Letterboxd export: the ZIP as base64, or the loose CSVs by file name.
+  app.post('/api/import/letterboxd/export', { bodyLimit: 30 * 1024 * 1024 }, async (req, reply) => {
+    const b = parse(
+      z.union([z.object({ zip: z.string().min(1).max(28_000_000) }), z.object({ files: z.record(z.string().max(200), z.string().max(10_000_000)) })]),
+      req.body,
+    );
+    reply.code(202);
+    return startLetterboxdExportPreview(db, b);
+  });
+
+  app.post('/api/import/goodreads/preview', { bodyLimit: 10 * 1024 * 1024 }, async (req, reply) => {
+    const b = parse(z.object({ csv: z.string().min(1).max(10_000_000) }), req.body);
+    reply.code(202);
+    return startGoodreadsPreview(db, b.csv);
+  });
+
+  app.post('/api/import', { bodyLimit: 10 * 1024 * 1024 }, async (req, reply) => {
+    const Match = z
+      .object({
+        provider: z.enum(['TMDB', 'OPENLIBRARY']),
+        external_id: z.string().max(40),
+        title: z.string().min(1).max(500),
+        year: z.number().int().nullable(),
+        cover_url: z.string().regex(/^https:\/\/(image\.tmdb\.org|covers\.openlibrary\.org)\//).nullable(),
+        synopsis: z.string().max(5000).nullable(),
+        genres: z.array(z.string().max(100)).max(10),
+      })
+      .refine((m) => (m.provider === 'TMDB' ? /^\d+$/ : /^\/works\/OL\d+W$/).test(m.external_id), 'Invalid provider id');
+    const Item = z
+      .object({
+        key: z.string().max(200),
+        source: z.enum(['LETTERBOXD', 'GOODREADS']),
+        type: z.enum(['MOVIE', 'BOOK']),
+        title: z.string().min(1).max(500),
+        year: z.number().int().min(-3000).max(2100).nullable(),
+        creator: z.string().max(300).nullable(),
+        rating: z.number().int().min(1).max(10).nullable(),
+        status: z.enum(STATUSES),
+        completed_at: z.string().datetime().nullable(),
+        pages: z.number().int().min(1).max(50_000).nullable(),
+        isbn: z.string().regex(/^[0-9X]{10}([0-9]{3})?$/i).nullable(),
+        source_url: z.string().regex(/^https:\/\/(letterboxd\.com\/film\/[\w-]+\/|boxd\.it\/\w+|www\.goodreads\.com\/book\/show\/\d+)$/).nullable(),
+        match: Match.nullable(),
+        in_pit: z.string().nullable(),
+      })
+      .refine((i) => (i.type === 'MOVIE') === (i.source === 'LETTERBOXD') && (!i.match || (i.match.provider === 'TMDB') === (i.type === 'MOVIE')), 'Item type does not match its source');
+    const b = parse(z.object({ items: z.array(Item).min(1).max(10_000) }), req.body);
+    reply.code(202);
+    return startImport(db, opts.dataDir, b.items);
+  });
+
+  app.get('/api/import/jobs/:id', async (req) => getImportJob(parse(idParam, req.params).id));
 
   app.patch('/api/library/:id', async (req) => {
     const { id } = parse(idParam, req.params);
