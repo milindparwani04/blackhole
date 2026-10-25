@@ -275,10 +275,9 @@ details[open] > summary::before { content: '– '; }
 .facts dt { color: var(--muted); }
 .facts dd { margin: 0; }
 .trophy-form { display: flex; flex-direction: column; gap: 8px; padding: 12px; border: 1px solid var(--accent); border-radius: var(--radius); }
-.stars { display: inline-flex; align-items: center; gap: 1px; }
-.stars button { background: none; border: 0; padding: 0 1px; color: var(--line-2); font-size: 15px; }
-.stars button.on { color: var(--accent-2); }
-.stars .sm { margin-left: 6px; }
+.rating-input { display: inline-flex; align-items: center; gap: 6px; }
+.rating-input .input { width: 4.5rem; text-align: right; -moz-appearance: textfield; }
+.rating-input .input::-webkit-inner-spin-button, .rating-input .input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
 .tv-progress { display: flex; flex-direction: column; gap: 6px; }
 .season-tabs { display: flex; gap: 4px; flex-wrap: wrap; }
 .season-tabs button { background: none; border: 1px solid var(--line-2); padding: 3px 9px; border-radius: 3px; font-size: 11.5px; color: var(--muted); }
@@ -294,9 +293,6 @@ details[open] > summary::before { content: '– '; }
 .ep-rating { font-size: 11px; color: var(--accent-2); }
 .page-ctl { display: flex; align-items: center; gap: 10px; }
 .page-ctl input[type='range'] { flex: 1; accent-color: var(--accent); }
-.history { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 4px; }
-.history li { display: grid; grid-template-columns: 1fr auto auto; gap: 8px; align-items: center; font-size: 12px; }
-.history li.undone span:first-child { text-decoration: line-through; color: var(--dim); }
 .delete-box { border: 1px solid var(--bad-line); padding: 10px; border-radius: var(--radius); display: flex; flex-direction: column; gap: 8px; width: 100%; }
 .delete-box p { margin: 0; }
 
