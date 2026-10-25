@@ -66,3 +66,8 @@
 - **Tests:** 58/58 (`movies.test.ts`: slugs, RT title/year/score parsing, add stores both ratings, preview stores nothing). `tsc` + `npm run build` clean.
 - **Live:** staging: Dune Part Two IMDb 8.4 / RT 95%, Matrix 8.7 / 85%. Real library: Dune 8.0/90%, Part Two 8.4/95%, Clayface 7.6/94%; Dune Part Three unreleased → unavailable.
 - **Not done:** nothing committed (branch `feat/imdb-episode-ratings`). Chrome extension wasn't connected; visual check used headless Edge on staging.
+
+## Update — 2026-10-25: shareable setup docs
+- Owner wants to share the project with a friend (repo link or GitHub ZIP, possibly handed to an AI agent). Verified no secrets in tracked files or history (`.env`, `data/`, `searxng/settings.yml` never committed; only fake test values).
+- README: new "Setup on a new computer" (Node, install, start, what needs keys, key steps matching Data & Sources, SearXNG, shortcut, data/sharing), stale rows updated (IMDb heatmap, movie ratings), attribution section. New `CLAUDE.md` (agent setup procedure, map, rules) + `AGENTS.md` pointer.
+- Verified on a clean clone (scratch, deleted): `npm ci` → 58/58 tests → build → `npm run serve` with no `.env` serves UI; TV search OK; TMDb/IGDB report NOT_CONFIGURED.
