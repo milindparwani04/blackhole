@@ -9,8 +9,6 @@ import { Inspector } from './features/Inspector';
 import { AddModal } from './features/AddModal';
 import { DataView } from './features/DataView';
 import { TYPE_LABEL } from './format';
-import { THEMES, applyTheme, savedTheme, type ThemeId } from './theme';
-import { FONTS, applyFont, savedFont, type FontId } from './fonts';
 
 type View = { kind: 'dashboard' } | { kind: 'library'; type: MediaType } | { kind: 'archive' } | { kind: 'data' };
 
@@ -97,8 +95,6 @@ export function App() {
           </button>
           <GlobalSearch />
           <div className="topbar-meta">
-            <FontCycler />
-            <ThemePicker />
             <Clock />
           </div>
         </header>
@@ -157,89 +153,6 @@ export function App() {
         )}
       </div>
     </Ctx.Provider>
-  );
-}
-
-const Swatch = ({ colors }: { colors: readonly string[] }) => (
-  <span className="theme-swatch" aria-hidden="true">
-    {colors.map((c) => (
-      <i key={c} style={{ background: c }} />
-    ))}
-  </span>
-);
-
-function ThemePicker() {
-  const [theme, setTheme] = useState<ThemeId>(savedTheme);
-  const [open, setOpen] = useState(false);
-  const box = useRef<HTMLDivElement>(null);
-  const current = THEMES.find((t) => t.id === theme)!;
-  useEffect(() => {
-    if (!open) return;
-    const away = (e: MouseEvent) => !box.current?.contains(e.target as Node) && setOpen(false);
-    const esc = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false);
-    document.addEventListener('mousedown', away);
-    document.addEventListener('keydown', esc);
-    return () => {
-      document.removeEventListener('mousedown', away);
-      document.removeEventListener('keydown', esc);
-    };
-  }, [open]);
-  return (
-    <div className="theme-pick" ref={box}>
-      <button className="theme-btn" aria-haspopup="listbox" aria-expanded={open} aria-label={`Theme: ${current.name}. Change theme`} onClick={() => setOpen(!open)}>
-        <Swatch colors={current.swatch} />
-        <span>
-          Theme: {current.name} <span className="caret">{open ? '−' : '+'}</span>
-        </span>
-      </button>
-      {open && (
-        <div className="theme-menu" role="listbox" aria-label="Theme">
-          {THEMES.map((t) => (
-            <button
-              key={t.id}
-              className="theme-opt"
-              role="option"
-              aria-selected={t.id === theme}
-              onClick={() => {
-                applyTheme(t.id);
-                setTheme(t.id);
-                setOpen(false);
-              }}
-            >
-              <Swatch colors={t.swatch} />
-              <span className="name">{t.name}</span>
-              <span className="mark" aria-hidden="true">
-                {t.id === theme ? '■' : ''}
-              </span>
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// TEMPORARY: font trial (see fonts.ts). Arrows step through the list.
-function FontCycler() {
-  const [font, setFont] = useState<FontId>(savedFont);
-  const i = FONTS.findIndex((f) => f.id === font);
-  const step = (d: number) => {
-    const next = FONTS[(i + d + FONTS.length) % FONTS.length].id;
-    applyFont(next);
-    setFont(next);
-  };
-  return (
-    <div className="font-cycle" role="group" aria-label="Font (trial)">
-      <button className="theme-btn" onClick={() => step(-1)} aria-label="Previous font">
-        ‹
-      </button>
-      <span className="font-name" aria-live="polite">
-        Font: {FONTS[i].name}
-      </span>
-      <button className="theme-btn" onClick={() => step(1)} aria-label="Next font">
-        ›
-      </button>
-    </div>
   );
 }
 
