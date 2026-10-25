@@ -1,4 +1,4 @@
-/* Blackhole — dark terminal themes. "Void" (the D-08 approved palette) is the default; the others
+/* Blackhole — dark terminal themes. :root holds "Void" (the D-08 palette); Mono is the default (index.html sets it). The others
    are picked from the theme switcher in the top bar and set html[data-theme]. Themes change
    colours and button styling only; layout and the rating colours stay the same everywhere. */
 :root {
@@ -123,6 +123,7 @@ body {
   background: var(--bg);
   color: var(--text);
   font-family: var(--font);
+  font-size-adjust: var(--font-adjust, none);
   font-size: 13px;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
@@ -168,6 +169,12 @@ h1, h2, h3 { margin: 0; font-weight: 500; }
 .search-empty { padding: 8px 10px; color: var(--muted); }
 .topbar-meta { display: flex; gap: 24px; align-items: center; margin-left: auto; }
 .clock { display: flex; flex-direction: column; font-size: 12px; border-left: 1px solid var(--line); padding-left: 20px; }
+/* PixC: the C/c glyphs milindparwani.com draws over Pixelify Sans (its own C reads as an O). Font trial only. */
+@font-face { font-family: 'PixC'; src: url('/fonts/PixC-400.otf') format('opentype'); font-weight: 400 599; font-display: swap; unicode-range: U+0043, U+0063; }
+@font-face { font-family: 'PixC'; src: url('/fonts/PixC-700.otf') format('opentype'); font-weight: 600 900; font-display: swap; unicode-range: U+0043, U+0063; }
+.font-cycle { display: flex; align-items: center; gap: 6px; }
+.font-cycle .theme-btn { padding: 4px 9px; font-size: 13px; }
+.font-name { font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); min-width: 170px; text-align: center; white-space: nowrap; }
 .theme-pick { position: relative; }
 .theme-btn { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border: 1px solid var(--line-2); border-radius: var(--btn-radius); background: none; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; white-space: nowrap; }
 .theme-btn:hover, .theme-btn[aria-expanded='true'] { background: var(--text); color: var(--bg); border-color: var(--text); }
@@ -432,8 +439,7 @@ details[open] > summary::before { content: '– '; }
 .legend-item { display: flex; align-items: center; gap: 8px; }
 .swatch { width: 14px; height: 14px; border-radius: 2px; display: inline-block; }
 
-/* ---------- footer / toast ---------- */
-.footer { margin-top: auto; display: flex; justify-content: space-between; font-size: 10px; letter-spacing: 0.15em; color: var(--dim); padding: 8px 4px 0; border-top: 1px solid var(--line); flex-wrap: wrap; gap: 8px; }
+/* ---------- toast ---------- */
 .toast-region { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 80; }
 .toast { display: flex; gap: 14px; align-items: center; background: var(--panel-2); border: 1px solid var(--accent); padding: 10px 14px; border-radius: var(--radius); box-shadow: 0 10px 30px var(--shadow); max-width: min(640px, calc(100vw - 32px)); animation: rise 0.18s ease-out; }
 .toast.error { border-color: var(--bad); }
@@ -514,5 +520,17 @@ details[open] > summary::before { content: '– '; }
 .more-line { margin-top: auto; padding-top: 8px; font-size: 11px; color: var(--muted); text-decoration: none; letter-spacing: 0.05em; }
 .more-line:hover { color: var(--accent-2); }
 @media (max-width: 1280px) { .backlog-grid { grid-template-columns: 1fr; } }
+/* Wide windows: the home view is exactly one screen, never scrolls; spare height is shared
+   evenly between the backlog rows so the gaps above and below match. */
+@media (min-width: 1281px) {
+  .main.fit { overflow: hidden; }
+  .main.fit .dashboard { flex: 1; min-height: 0; }
+  .main.fit .backlog-grid { flex: 1; min-height: 0; grid-template-rows: repeat(2, minmax(0, 1fr)); }
+  .main.fit .backlog-panel { min-height: 0; overflow: hidden; }
+  .main.fit .backlog-list { flex: 1; min-height: 0; display: grid; grid-template-rows: repeat(5, minmax(0, 1fr)); }
+  .main.fit .backlog-list li { display: flex; min-height: 0; }
+  .main.fit .backlog-list button { flex: 1; }
+  .main.fit .more-line { margin-top: 0; }
+}
 /* Segmented controls that should hug their buttons instead of stretching across a flex column. */
 .seg.fit { align-self: flex-start; max-width: 100%; }

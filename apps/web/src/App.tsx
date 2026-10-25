@@ -10,6 +10,7 @@ import { AddModal } from './features/AddModal';
 import { DataView } from './features/DataView';
 import { TYPE_LABEL } from './format';
 import { THEMES, applyTheme, savedTheme, type ThemeId } from './theme';
+import { FONTS, applyFont, savedFont, type FontId } from './fonts';
 
 type View = { kind: 'dashboard' } | { kind: 'library'; type: MediaType } | { kind: 'archive' } | { kind: 'data' };
 
@@ -96,6 +97,7 @@ export function App() {
           </button>
           <GlobalSearch />
           <div className="topbar-meta">
+            <FontCycler />
             <ThemePicker />
             <Clock />
           </div>
@@ -130,15 +132,11 @@ export function App() {
           </div>
         </nav>
 
-        <main id="main" className="main" tabIndex={-1}>
+        <main id="main" className={`main ${view.kind === 'dashboard' ? 'fit' : ''}`} tabIndex={-1}>
           {view.kind === 'dashboard' && <Dashboard stats={stats} />}
           {view.kind === 'library' && <LibraryView key={view.type} type={view.type} />}
           {view.kind === 'archive' && <LibraryView key="archive" archived />}
           {view.kind === 'data' && <DataView />}
-          <footer className="footer">
-            <span>BLACKHOLE v0.1.0 / LOCAL</span>
-            <span>BUILT LOCALLY | NO CLOUD | ALL YOUR WORLDS</span>
-          </footer>
         </main>
 
         {selectedId && <Inspector key={selectedId} id={selectedId} />}
@@ -217,6 +215,30 @@ function ThemePicker() {
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+// TEMPORARY: font trial (see fonts.ts). Arrows step through the list.
+function FontCycler() {
+  const [font, setFont] = useState<FontId>(savedFont);
+  const i = FONTS.findIndex((f) => f.id === font);
+  const step = (d: number) => {
+    const next = FONTS[(i + d + FONTS.length) % FONTS.length].id;
+    applyFont(next);
+    setFont(next);
+  };
+  return (
+    <div className="font-cycle" role="group" aria-label="Font (trial)">
+      <button className="theme-btn" onClick={() => step(-1)} aria-label="Previous font">
+        ‹
+      </button>
+      <span className="font-name" aria-live="polite">
+        Font: {FONTS[i].name}
+      </span>
+      <button className="theme-btn" onClick={() => step(1)} aria-label="Next font">
+        ›
+      </button>
     </div>
   );
 }

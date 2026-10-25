@@ -1,8 +1,8 @@
 // Colour themes, picked from the top bar. The palettes live in styles/app.css under
 // html[data-theme]; the swatch colours here are what the picker shows (background, text, accent).
 export const THEMES = [
-  { id: 'void', name: 'Void', swatch: ['#08080a', '#e9e9f0', '#8b5cf6'] },
   { id: 'mono', name: 'Mono', swatch: ['#070707', '#f4f3ef', '#1ed760'] },
+  { id: 'void', name: 'Void', swatch: ['#08080a', '#e9e9f0', '#8b5cf6'] },
   { id: 'night', name: 'Night', swatch: ['#0d1020', '#f3ead8', '#7ef0b0'] },
   { id: 'amber', name: 'Amber', swatch: ['#0a0700', '#ffd58a', '#ffb000'] },
   { id: 'phosphor', name: 'Phosphor', swatch: ['#020a04', '#c6ffd4', '#33ff77'] },
@@ -18,9 +18,9 @@ const isTheme = (v: unknown): v is ThemeId => THEMES.some((t) => t.id === v);
 export function savedTheme(): ThemeId {
   try {
     const v = localStorage.getItem(KEY);
-    return isTheme(v) ? v : 'void';
+    return isTheme(v) ? v : 'mono';
   } catch {
-    return 'void';
+    return 'mono';
   }
 }
 
