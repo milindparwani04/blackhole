@@ -28,7 +28,6 @@ interface TvmazeEpisode {
   runtime: number | null;
   summary: string | null;
   type: string;
-  rating: { average: number | null } | null;
 }
 
 export async function searchShows(q: string): Promise<SearchResult[]> {
@@ -61,7 +60,7 @@ export async function showImdbId(showId: string): Promise<string | null> {
 
 /**
  * Imports/refreshes seasons and episodes. Existing episodes keep their IDs (and so their watch state);
- * new episodes are added. Ratings are TVmaze user ratings stored with provider + scale + fetch time.
+ * new episodes are added. TVmaze's episode ratings are not used: the heatmap reads IMDb only (D-03).
  */
 export async function syncEpisodes(db: DB, mediaId: string, showId: string): Promise<{ episodes: number }> {
   const eps = await fetchJson<TvmazeEpisode[]>(`${BASE}/shows/${encodeURIComponent(showId)}/episodes?specials=1`);
@@ -113,18 +112,6 @@ export async function syncEpisodes(db: DB, mediaId: string, showId: string): Pro
            VALUES (:id, :season_id, :media_id, 'TVMAZE', :pid, :number, :title, :airdate, :runtime_min, :summary)`,
           fields,
         );
-      }
-      const score = ep.rating?.average;
-      if (typeof score === 'number' && score >= 0 && score <= 10) {
-        run(
-          db,
-          `INSERT INTO episode_ratings (episode_id, provider, score, scale, fetched_at) VALUES (:id, 'TVMAZE', :score, 10, :now)
-           ON CONFLICT (episode_id, provider) DO UPDATE SET score = excluded.score, fetched_at = excluded.fetched_at`,
-          { id: episodeId, score, now },
-        );
-      } else {
-        // Absent rating stays absent — never coerce to zero.
-        run(db, `DELETE FROM episode_ratings WHERE episode_id = :id AND provider = 'TVMAZE'`, { id: episodeId });
       }
     }
     // Drop empty seasons left behind by renumbering.

@@ -73,14 +73,14 @@ describe('IMDb episode ratings', () => {
     expect((fetch as any).mock.calls.length).toBe(calls);
   });
 
-  it('falls back to TVmaze ratings for a show IMDb has none for', async () => {
+  it('shows no ratings for a show IMDb has none for, even if TVmaze ratings exist', async () => {
     const res = await app.inject({ method: 'POST', url: '/api/library', headers, payload: { type: 'TV', title: 'Obscure Show' } });
     const { entry, media } = res.json().detail;
     run(db, `INSERT INTO tv_seasons VALUES ('s1', :m, 1, 0)`, { m: media.id });
     run(db, `INSERT INTO tv_episodes VALUES ('e1', 's1', :m, 'TVMAZE', 'e1', 1, NULL, '2020-01-01', 40, NULL)`, { m: media.id });
     run(db, `INSERT INTO episode_ratings VALUES ('e1', 'TVMAZE', 7.4, 10, '2026-10-01')`);
     const tv = (await app.inject({ method: 'GET', url: `/api/library/${entry.id}`, headers })).json().tv;
-    expect(tv.seasons[0].episodes[0].rating).toMatchObject({ provider: 'TVMAZE', score: 7.4 });
-    expect(tv.ratings_attribution).toContain('TVmaze');
+    expect(tv.seasons[0].episodes[0].rating).toBeNull();
+    expect(tv.ratings_attribution).toBeNull();
   });
 });

@@ -391,20 +391,14 @@ export function getEntryVersion(db: DB, entryId: string) {
 export function loadSeasons(db: DB, mediaId: string, entryId: string): { seasons: Season[]; progress: TvProgress; ratings_attribution: string | null } {
   const today = todayLocal();
   const seasons = all<any>(db, 'SELECT * FROM tv_seasons WHERE media_id = :m ORDER BY is_special DESC, number', { m: mediaId });
-  // One rating source per show so the heatmap never mixes scales of opinion: IMDb when it has any, else TVmaze.
-  const ratingProvider = get(db, `SELECT 1 FROM episode_ratings r JOIN tv_episodes e ON e.id = r.episode_id WHERE e.media_id = :m AND r.provider = 'IMDB' LIMIT 1`, {
-    m: mediaId,
-  })
-    ? 'IMDB'
-    : 'TVMAZE';
   const eps = all<any>(
     db,
     `SELECT e.*, w.watched, w.watched_at, r.provider AS r_provider, r.score AS r_score, r.scale AS r_scale, r.fetched_at AS r_fetched
      FROM tv_episodes e
      LEFT JOIN episode_watch_states w ON w.episode_id = e.id AND w.entry_id = :entry
-     LEFT JOIN episode_ratings r ON r.episode_id = e.id AND r.provider = :rp
+     LEFT JOIN episode_ratings r ON r.episode_id = e.id AND r.provider = 'IMDB'
      WHERE e.media_id = :m ORDER BY e.number`,
-    { m: mediaId, entry: entryId, rp: ratingProvider },
+    { m: mediaId, entry: entryId },
   );
   const media = get<any>(db, 'SELECT runtime_min FROM media_items WHERE id = :m', { m: mediaId });
   const progress: TvProgress = {
@@ -465,10 +459,8 @@ export function loadSeasons(db: DB, mediaId: string, entryId: string): { seasons
   // Kept for the case where a show was dropped/paused with everything watched; completion itself is automatic (D-04).
   progress.suggest_complete = progress.eligible > 0 && progress.watched === progress.eligible && !['COMPLETED', 'DROPPED'].includes(entry?.status);
   const rated = eps.some((e) => e.r_provider);
-  const attribution =
-    ratingProvider === 'IMDB'
-      ? 'Episode ratings: IMDb user ratings (/10, updated daily). Information courtesy of IMDb (https://www.imdb.com). Used with permission'
-      : 'Episode ratings: TVmaze user ratings (/10), CC BY-SA 4.0';
+  // D-03: IMDb is the only episode rating source. A show IMDb has no ratings for (e.g. just premiered) shows none.
+  const attribution = 'Episode ratings: IMDb user ratings (/10, updated daily). Information courtesy of IMDb (https://www.imdb.com). Used with permission';
   return { seasons: out, progress, ratings_attribution: rated ? attribution : null };
 }
 
