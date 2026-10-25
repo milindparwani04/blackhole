@@ -129,3 +129,5 @@
 - **Movie add no longer waits ≤15 s for ratings** (bulk adds waited that long per movie). `refreshMovieRatingsInBackground` (dedupes per media id); detail has `movie.ratings_pending`. Inspector shows "Loading…" and polls like it does for trophy jobs, then bumps lists. Test updated (`movieRatingsSettled`).
 - **Lint/format:** typescript-eslint doesn't support TS 7 (peer `<6.1`), so **oxlint** (`.oxlintrc.json`: correctness + React hooks rules; `no-unused-expressions` off for the house `a && b()` idiom; React Compiler rules off, since the app doesn't use the compiler). Prettier (`.prettierrc.json`, width 160, single quotes) on .ts/.tsx only; app.css keeps its one-line rules. One format-only commit, listed in `.git-blame-ignore-revs`. CI: lint, format:check, typecheck, test, build. Lint only found useless `\-` escapes in trophies.ts regexes.
 - Checks: lint 0, format clean, typecheck clean, 79/79 tests, build OK.
+
+- **Owner decision (2026-10-25):** after hearing why the "+ N more in the backlog" line was removed (it cost a row and misaligned panels; the header already has the count and VIEW ALL), the owner chose to keep it removed. Do not reintroduce it.
