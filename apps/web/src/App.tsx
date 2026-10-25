@@ -9,7 +9,6 @@ import { Inspector } from './features/Inspector';
 import { AddModal } from './features/AddModal';
 import { DataView } from './features/DataView';
 import { TYPE_LABEL } from './format';
-import { THEMES, applyTheme, savedTheme, type ThemeId } from './theme';
 
 type View = { kind: 'dashboard' } | { kind: 'library'; type: MediaType } | { kind: 'archive' } | { kind: 'data' };
 
@@ -96,7 +95,6 @@ export function App() {
           </button>
           <GlobalSearch />
           <div className="topbar-meta">
-            <ThemePicker />
             <Clock />
           </div>
         </header>
@@ -130,15 +128,11 @@ export function App() {
           </div>
         </nav>
 
-        <main id="main" className="main" tabIndex={-1}>
+        <main id="main" className={`main ${view.kind === 'dashboard' ? 'fit' : ''}`} tabIndex={-1}>
           {view.kind === 'dashboard' && <Dashboard stats={stats} />}
           {view.kind === 'library' && <LibraryView key={view.type} type={view.type} />}
           {view.kind === 'archive' && <LibraryView key="archive" archived />}
           {view.kind === 'data' && <DataView />}
-          <footer className="footer">
-            <span>BLACKHOLE v0.1.0 / LOCAL</span>
-            <span>BUILT LOCALLY | NO CLOUD | ALL YOUR WORLDS</span>
-          </footer>
         </main>
 
         {selectedId && <Inspector key={selectedId} id={selectedId} />}
@@ -159,65 +153,6 @@ export function App() {
         )}
       </div>
     </Ctx.Provider>
-  );
-}
-
-const Swatch = ({ colors }: { colors: readonly string[] }) => (
-  <span className="theme-swatch" aria-hidden="true">
-    {colors.map((c) => (
-      <i key={c} style={{ background: c }} />
-    ))}
-  </span>
-);
-
-function ThemePicker() {
-  const [theme, setTheme] = useState<ThemeId>(savedTheme);
-  const [open, setOpen] = useState(false);
-  const box = useRef<HTMLDivElement>(null);
-  const current = THEMES.find((t) => t.id === theme)!;
-  useEffect(() => {
-    if (!open) return;
-    const away = (e: MouseEvent) => !box.current?.contains(e.target as Node) && setOpen(false);
-    const esc = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false);
-    document.addEventListener('mousedown', away);
-    document.addEventListener('keydown', esc);
-    return () => {
-      document.removeEventListener('mousedown', away);
-      document.removeEventListener('keydown', esc);
-    };
-  }, [open]);
-  return (
-    <div className="theme-pick" ref={box}>
-      <button className="theme-btn" aria-haspopup="listbox" aria-expanded={open} aria-label={`Theme: ${current.name}. Change theme`} onClick={() => setOpen(!open)}>
-        <Swatch colors={current.swatch} />
-        <span>
-          Theme: {current.name} <span className="caret">{open ? '−' : '+'}</span>
-        </span>
-      </button>
-      {open && (
-        <div className="theme-menu" role="listbox" aria-label="Theme">
-          {THEMES.map((t) => (
-            <button
-              key={t.id}
-              className="theme-opt"
-              role="option"
-              aria-selected={t.id === theme}
-              onClick={() => {
-                applyTheme(t.id);
-                setTheme(t.id);
-                setOpen(false);
-              }}
-            >
-              <Swatch colors={t.swatch} />
-              <span className="name">{t.name}</span>
-              <span className="mark" aria-hidden="true">
-                {t.id === theme ? '■' : ''}
-              </span>
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
   );
 }
 
