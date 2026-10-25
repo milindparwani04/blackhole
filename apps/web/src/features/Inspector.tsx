@@ -138,7 +138,6 @@ export function Inspector({ id }: { id: string }) {
 
         <PersonalPanel d={d} act={act} />
         <MetadataEditor d={d} act={act} />
-        <History d={d} act={act} />
 
         <section className="insp-section row gap wrap">
           {entry.archived_at ? (
@@ -853,34 +852,37 @@ function PersonalPanel({ d, act }: { d: EntryDetail; act: Act }) {
   const { entry } = d;
   const [notes, setNotes] = useState(entry.notes);
   useEffect(() => setNotes(entry.notes), [entry.notes]);
+  const [rating, setRating] = useState(entry.personal_rating?.toString() ?? '');
+  useEffect(() => setRating(entry.personal_rating?.toString() ?? ''), [entry.personal_rating]);
   const patch = (body: Record<string, unknown>, msg: string) => act(() => api.patch(entry.id, { version: entry.version, ...body }), msg);
+  // Empty clears the rating; anything else must be 0–10, kept to one decimal place.
+  const saveRating = () => {
+    const text = rating.trim();
+    const n = text === '' ? null : Math.round(Number(text) * 10) / 10;
+    if (n != null && (!Number.isFinite(n) || n < 0 || n > 10)) return setRating(entry.personal_rating?.toString() ?? '');
+    setRating(n?.toString() ?? '');
+    if (n !== entry.personal_rating) patch({ personal_rating: n }, n == null ? 'Rating cleared' : `Rated ${n}/10`);
+  };
   return (
     <section className="insp-section">
-      <h3 className="h-sub">MINE</h3>
-      <div className="kv">
-        <span className="lbl">My rating</span>
-        <span className="stars" role="group" aria-label="My rating out of 10">
-          {Array.from({ length: 10 }, (_, i) => i + 1).map((n) => (
-            <button key={n} className={entry.personal_rating != null && n <= entry.personal_rating ? 'on' : ''} aria-label={`${n} out of 10`} aria-pressed={entry.personal_rating === n} onClick={() => patch({ personal_rating: entry.personal_rating === n ? null : n }, entry.personal_rating === n ? 'Rating cleared' : `Rated ${n}/10`)}>
-              ★
-            </button>
-          ))}
-          <span className="sm">{entry.personal_rating != null ? `${entry.personal_rating}/10` : '—'}</span>
-        </span>
-      </div>
-      <div className="kv">
-        <span className="lbl">Priority</span>
-        <span className="seg mini">
-          {['None', 'Low', 'Med', 'High'].map((l, i) => (
-            <button key={l} className={entry.priority === i ? 'on' : ''} aria-pressed={entry.priority === i} onClick={() => entry.priority !== i && patch({ priority: i }, `Priority ${l}`)}>
-              {l}
-            </button>
-          ))}
-        </span>
-      </div>
       <label className="kv">
-        <span className="lbl">Owned</span>
-        <input type="checkbox" checked={entry.owned} onChange={(e) => patch({ owned: e.target.checked }, e.target.checked ? 'Marked owned' : 'Marked not owned')} />
+        <span className="lbl">My rating</span>
+        <span className="rating-input">
+          <input
+            className="input"
+            type="number"
+            inputMode="decimal"
+            min={0}
+            max={10}
+            step={0.1}
+            value={rating}
+            placeholder="—"
+            onChange={(e) => setRating(e.target.value)}
+            onBlur={saveRating}
+            onKeyDown={(e) => e.key === 'Enter' && (e.currentTarget as HTMLInputElement).blur()}
+          />
+          <span className="sm muted">/ 10</span>
+        </span>
       </label>
       <label className="block">
         <span className="lbl">Notes</span>
@@ -969,27 +971,6 @@ function MetadataEditor({ d, act }: { d: EntryDetail; act: Act }) {
         </label>
         <button className="btn primary sm">Save details</button>
       </form>
-    </details>
-  );
-}
-
-function History({ d, act }: { d: EntryDetail; act: Act }) {
-  return (
-    <details className="insp-section">
-      <summary className="h-sub">HISTORY ({d.events.length})</summary>
-      <ol className="history">
-        {d.events.map((e) => (
-          <li key={e.id} className={e.undone_at ? 'undone' : ''}>
-            <span>{e.summary}</span>
-            <span className="muted sm">{fmtDateTime(e.occurred_at)}</span>
-            {e.undoable && (
-              <button className="btn ghost xs" onClick={() => act(() => api.undo(e.id), 'Change undone')}>
-                Undo
-              </button>
-            )}
-          </li>
-        ))}
-      </ol>
     </details>
   );
 }
