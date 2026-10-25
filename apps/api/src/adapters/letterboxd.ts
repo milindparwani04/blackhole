@@ -42,7 +42,13 @@ export function letterboxdUser(input: string): string {
 }
 
 const decode = (s: string) =>
-  s.replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#0?39;|&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(Number(n)));
+  s
+    .replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"')
+    .replace(/&#0?39;|&apos;/g, "'")
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(Number(n)));
 
 /** Reads one poster-grid page: films in page order plus the highest page number linked from the pager. */
 export function parseFilmGrid(html: string): { films: { slug: string; title: string; year: number | null; rating: number | null }[]; lastPage: number } {
@@ -65,7 +71,8 @@ async function readPage(url: string, user: string): Promise<string> {
     return await fetchGuidePage(url);
   } catch (err) {
     if (err instanceof AppError && /HTTP 404/.test(err.message)) throw new AppError('NOT_FOUND', `Letterboxd has no profile called “${user}”`);
-    if (err instanceof AppError && err.code === 'PERMISSION_REQUIRED') throw new AppError('PERMISSION_REQUIRED', 'Letterboxd refused the request (bot check). Use the data export instead.');
+    if (err instanceof AppError && err.code === 'PERMISSION_REQUIRED')
+      throw new AppError('PERMISSION_REQUIRED', 'Letterboxd refused the request (bot check). Use the data export instead.');
     throw err;
   }
 }
@@ -74,16 +81,21 @@ async function readPage(url: string, user: string): Promise<string> {
  * Films (page 1 only; later pages are behind a bot check) and the full watchlist from the public profile.
  * `partial` is true when Letterboxd lists more films than the first page shows.
  */
-export async function readLetterboxdProfile(user: string, onProgress?: (msg: string) => void): Promise<{ films: LetterboxdFilm[]; partial: boolean; filmPages: number }> {
-  const tile = (watched: boolean) => (f: ReturnType<typeof parseFilmGrid>['films'][number]): LetterboxdFilm => ({
-    key: f.slug,
-    title: f.title,
-    year: f.year,
-    rating: watched ? f.rating : null,
-    watched,
-    watched_on: null,
-    source_url: `https://letterboxd.com/film/${f.slug}/`,
-  });
+export async function readLetterboxdProfile(
+  user: string,
+  onProgress?: (msg: string) => void,
+): Promise<{ films: LetterboxdFilm[]; partial: boolean; filmPages: number }> {
+  const tile =
+    (watched: boolean) =>
+    (f: ReturnType<typeof parseFilmGrid>['films'][number]): LetterboxdFilm => ({
+      key: f.slug,
+      title: f.title,
+      year: f.year,
+      rating: watched ? f.rating : null,
+      watched,
+      watched_on: null,
+      source_url: `https://letterboxd.com/film/${f.slug}/`,
+    });
   onProgress?.('Reading your Letterboxd films…');
   const first = parseFilmGrid(await readPage(`https://letterboxd.com/${user}/films/`, user));
   const out = first.films.map(tile(true));
@@ -140,7 +152,8 @@ export function parseLetterboxdExport(files: Map<string, string>): LetterboxdFil
   const file = (n: string) => [...files].find(([k]) => k.split('/').pop()?.toLowerCase() === n)?.[1];
   const watched = rows(file('watched.csv'));
   const watchlist = rows(file('watchlist.csv'));
-  if (!watched.length && !watchlist.length) throw new AppError('VALIDATION_ERROR', 'No watched.csv or watchlist.csv found. Use the ZIP from Letterboxd → Settings → Data → Export your data.');
+  if (!watched.length && !watchlist.length)
+    throw new AppError('VALIDATION_ERROR', 'No watched.csv or watchlist.csv found. Use the ZIP from Letterboxd → Settings → Data → Export your data.');
   const key = (r: Record<string, string>) => `${r.Name}|${r.Year ?? ''}`;
   const ratings = new Map(rows(file('ratings.csv')).map((r) => [key(r), Number(r.Rating)]));
   const watchedOn = new Map<string, string>();

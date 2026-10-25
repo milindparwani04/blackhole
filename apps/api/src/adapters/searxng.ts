@@ -51,7 +51,10 @@ async function searxNow(q: string): Promise<SearxResult[]> {
   }
   const down = data.unresponsive_engines ?? [];
   if (!data.results?.length && down.length) {
-    throw new AppError('RATE_LIMITED', `Search engines are temporarily limiting requests (${down.map(([e, why]) => `${e}: ${why}`).join('; ')}). Try Refresh again in a few minutes.`);
+    throw new AppError(
+      'RATE_LIMITED',
+      `Search engines are temporarily limiting requests (${down.map(([e, why]) => `${e}: ${why}`).join('; ')}). Try Refresh again in a few minutes.`,
+    );
   }
   return (data.results ?? []).filter((r) => typeof r.url === 'string' && typeof r.title === 'string').map((r) => ({ ...r, content: String(r.content ?? '') }));
 }

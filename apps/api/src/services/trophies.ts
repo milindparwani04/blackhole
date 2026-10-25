@@ -38,7 +38,10 @@ export function parseGuideText(raw: string): TrophyProposal {
   // Labelled values only ("Estimated trophy difficulty: 5/10", "Platinum difficulty 4-5/10", "Difficulty: 6/10") —
   // snippets often include reader comments, whose numbers must not be mistaken for the guide's rating.
   const LABEL = String.raw`(?:(?:estimated\s+)?(?:trophy|platinum)\s+difficulty|difficulty\s*:)`;
-  const d1 = new RegExp(String.raw`${LABEL}[^0-9/]{0,25}?(\d{1,2}(?:\.\d)?)\s*(?:[-–]|to)\s*(\d{1,2}(?:\.\d)?)\s*\/\s*10|${LABEL}[^0-9/]{0,25}?(\d{1,2}(?:\.\d)?)\s*\/\s*10`, 'i').exec(text);
+  const d1 = new RegExp(
+    String.raw`${LABEL}[^0-9/]{0,25}?(\d{1,2}(?:\.\d)?)\s*(?:[-–]|to)\s*(\d{1,2}(?:\.\d)?)\s*\/\s*10|${LABEL}[^0-9/]{0,25}?(\d{1,2}(?:\.\d)?)\s*\/\s*10`,
+    'i',
+  ).exec(text);
   const d2 = /(\d{1,2}(?:\.\d)?)\s*\/\s*10\s+difficulty/i.exec(text);
   // PlayStationTrophies omits the "/10": "Estimated Trophy Difficulty: 4.5 ·" (their scale is out of 10).
   const d3 = /estimated\s+trophy\s+difficulty\s*:?\s*(\d{1,2}(?:\.\d)?)(?!\s*\/\s*\d)(?![\d.])/i.exec(text);
@@ -64,12 +67,15 @@ export function parseGuideText(raw: string): TrophyProposal {
   // Hours: only accept a number of hours whose preceding context talks about platinum/100%/trophies.
   // The lookbehind stops clock times ("under 5:00 hours") and decimals from being read as a number of hours.
   const hourRe = /(?<![\d:.])(\d{1,4})(?:\s*(?:[-–]|to)\s*(\d{1,4}))?\s*\+?\s*(?:hours|hrs|h)\b/gi;
-  for (let m: RegExpExecArray | null; (m = hourRe.exec(text)); ) {
+  for (let m: RegExpExecArray | null; (m = hourRe.exec(text));) {
     const before = text.slice(Math.max(0, m.index - 60), m.index);
     const after = text.slice(m.index + m[0].length, m.index + m[0].length + 40);
     if (Number(m[1]) === 0) continue;
     // Labelled estimate before ("Approximate amount of time to platinum: 60-80 hours") or after ("30-40 hours (Estimated Time to Platinum)").
-    const labelledBefore = /(?:time\s+to\s+(?:platinum|\/?\s*100\s?%)|amount\s+of\s+time|time\s+to\s+plat|estimated\s+time|platinum\s+time|hours\s+to\s+platinum)[^0-9]{0,25}$/i.test(before);
+    const labelledBefore =
+      /(?:time\s+to\s+(?:platinum|\/?\s*100\s?%)|amount\s+of\s+time|time\s+to\s+plat|estimated\s+time|platinum\s+time|hours\s+to\s+platinum)[^0-9]{0,25}$/i.test(
+        before,
+      );
     const labelledAfter = /^\s*\(?\s*(?:estimated\s+)?time\s+to\s+(?:platinum|100\s?%)/i.test(after);
     if (labelledBefore || labelledAfter) {
       p.hours_min = Number(m[1]);
@@ -117,7 +123,16 @@ const GUIDE_PATH: Record<string, RegExp> = {
 /** Strips the site's suffix ("Trophy Guide & Roadmap", "• PSNProfiles.com") and platform/year tags to leave the game name. */
 export function guideGameName(resultTitle: string): { name: string; platform: PsPlatform | null; year: number | null } {
   const year = /\((\d{4})\)/.exec(resultTitle);
-  const platform = /\bPS5\b/i.test(resultTitle) && !/\bPS4\b/i.test(resultTitle) ? 'PS5' : /\bPS4\b/i.test(resultTitle) && !/\bPS5\b/i.test(resultTitle) ? 'PS4' : /\bPS3\b/i.test(resultTitle) ? 'PS3' : /\bVita\b/i.test(resultTitle) ? 'PSVITA' : null;
+  const platform =
+    /\bPS5\b/i.test(resultTitle) && !/\bPS4\b/i.test(resultTitle)
+      ? 'PS5'
+      : /\bPS4\b/i.test(resultTitle) && !/\bPS5\b/i.test(resultTitle)
+        ? 'PS4'
+        : /\bPS3\b/i.test(resultTitle)
+          ? 'PS3'
+          : /\bVita\b/i.test(resultTitle)
+            ? 'PSVITA'
+            : null;
   const name = resultTitle
     .split(/\s+(?:trophy|trophies)\s+(?:guide|list|roadmap)|\s+platinum\s+(?:guide|walkthrough)|\s+[-–|•·]\s+/i)[0]
     .replace(/\((?:PS[345]|PS ?Vita|PS4\s*\/\s*PS5|PS5\s*\/\s*PS4)[^)]*\)/gi, '')
@@ -189,7 +204,22 @@ export const latestJob = (db: DB, entryId: string): TrophyJob | null => {
   return r ? mapJob(r) : null;
 };
 
-const STACK_COLS = ['platinum', 'hours_min', 'hours_max', 'difficulty_min', 'difficulty_max', 'difficulty_text', 'playthroughs', 'online_required', 'missables', 'guide_url', 'source', 'checked_at', 'notes', 'user_locked'] as const;
+const STACK_COLS = [
+  'platinum',
+  'hours_min',
+  'hours_max',
+  'difficulty_min',
+  'difficulty_max',
+  'difficulty_text',
+  'playthroughs',
+  'online_required',
+  'missables',
+  'guide_url',
+  'source',
+  'checked_at',
+  'notes',
+  'user_locked',
+] as const;
 
 function stackRow(db: DB, mediaId: string, platform: PsPlatform) {
   return get<any>(db, `SELECT * FROM trophy_guides WHERE media_id = :m AND platform = :p AND region = 'ALL'`, { m: mediaId, p: platform });
@@ -214,7 +244,7 @@ function applyProposal(db: DB, jobId: string) {
       online_required: prop.online_required ?? existing?.online_required ?? null,
       missables: prop.missables ?? existing?.missables ?? null,
       guide_url: prop.guide_url,
-      source: prop.source ?? "Guide",
+      source: prop.source ?? 'Guide',
       checked_at: nowIso(),
       notes: existing?.notes ?? '',
       user_locked: 0,
@@ -249,7 +279,10 @@ export function revertJob(db: DB, jobId: string) {
     const job = get<any>(db, 'SELECT j.*, le.media_id FROM trophy_lookup_jobs j JOIN library_entries le ON le.id = j.entry_id WHERE j.id = :id', { id: jobId });
     if (!job) throw new AppError('NOT_FOUND', 'Lookup not found');
     if (!job.applied_at || job.reverted_at) throw new AppError('CONFLICT', 'Nothing to revert');
-    const later = get(db, 'SELECT 1 FROM trophy_lookup_jobs WHERE entry_id = :e AND applied_at > :t AND reverted_at IS NULL', { e: job.entry_id, t: job.applied_at });
+    const later = get(db, 'SELECT 1 FROM trophy_lookup_jobs WHERE entry_id = :e AND applied_at > :t AND reverted_at IS NULL', {
+      e: job.entry_id,
+      t: job.applied_at,
+    });
     if (later) throw new AppError('CONFLICT', 'A newer lookup was applied after this one');
     const existing = stackRow(db, job.media_id, job.platform);
     const prev = job.previous ? JSON.parse(job.previous) : null;
@@ -308,7 +341,9 @@ export async function runJob(db: DB, jobId: string): Promise<void> {
       return;
     }
   }
-  const candidates = results.map((r) => evaluateCandidate(r, job.title, job.platform, job.year ?? null)).filter((c) => GUIDE_SITES.some((s) => s.name === c.site));
+  const candidates = results
+    .map((r) => evaluateCandidate(r, job.title, job.platform, job.year ?? null))
+    .filter((c) => GUIDE_SITES.some((s) => s.name === c.site));
   const rank = (c: TrophyCandidate) => GUIDE_SITES.findIndex((s) => s.name === c.site);
   const fields = (c: TrophyCandidate) => (c.parsed.hours_max != null ? 1 : 0) + (c.parsed.difficulty_max != null ? 1 : 0);
   // Search summaries are often truncated. If none gave both hours and difficulty, read the roadmap box of up to two
@@ -317,13 +352,18 @@ export async function runJob(db: DB, jobId: string): Promise<void> {
     // Search often misses PowerPyx (the one site without a bot wall), but its guide URLs follow a fixed pattern.
     // The guessed page is only used if its own heading names this game and it was published after the game's release.
     if (!candidates.some((c) => c.site === 'PowerPyx' && c.matched)) candidates.push(powerPyxGuess(job.title, job.platform));
-    const toRead = candidates.filter((c) => c.matched).sort((a, b) => rank(a) - rank(b)).slice(0, 2);
+    const toRead = candidates
+      .filter((c) => c.matched)
+      .sort((a, b) => rank(a) - rank(b))
+      .slice(0, 2);
     for (const c of toRead) {
       await readPage(c, job.title, job.year ?? null);
       if (c.accepted && fields(c) === 2) break;
     }
   }
-  const accepted = candidates.filter((c) => c.accepted).sort((a, b) => fields(b) - fields(a) || Number(!!b.from_page) - Number(!!a.from_page) || rank(a) - rank(b));
+  const accepted = candidates
+    .filter((c) => c.accepted)
+    .sort((a, b) => fields(b) - fields(a) || Number(!!b.from_page) - Number(!!a.from_page) || rank(a) - rank(b));
   // One guide is used as-is; values from different guides are never averaged or mixed.
   const best = accepted[0];
   const shown = [...accepted, ...candidates.filter((c) => !c.accepted)].slice(0, 6);
@@ -335,7 +375,11 @@ export async function runJob(db: DB, jobId: string): Promise<void> {
   const existing = stackRow(db, job.media_id, job.platform);
   const manual = !!existing?.user_locked;
   const status = job.trigger === 'REFRESH' || manual ? 'NEEDS_REVIEW' : hasBoth ? 'FOUND' : 'PARTIAL';
-  finish({ status, candidates: JSON.stringify(shown), proposal: JSON.stringify({ ...best.parsed, source: `${best.site} (${best.from_page ? "guide roadmap" : "search summary"})`, guide_url: best.url }) });
+  finish({
+    status,
+    candidates: JSON.stringify(shown),
+    proposal: JSON.stringify({ ...best.parsed, source: `${best.site} (${best.from_page ? 'guide roadmap' : 'search summary'})`, guide_url: best.url }),
+  });
   if (status !== 'NEEDS_REVIEW') applyProposal(db, jobId);
 }
 
@@ -382,7 +426,9 @@ async function readPage(c: TrophyCandidate, gameTitle: string, gameYear: number 
       return;
     }
     const text = htmlToText(html);
-    const published = new RegExp(`(?:${MONTHS})\\s+\\d{1,2},\\s+(\\d{4})`).exec(text.slice(0, Math.max(0, text.search(/estimated\s+trophy\s+difficulty/i)) || 3000));
+    const published = new RegExp(`(?:${MONTHS})\\s+\\d{1,2},\\s+(\\d{4})`).exec(
+      text.slice(0, Math.max(0, text.search(/estimated\s+trophy\s+difficulty/i)) || 3000),
+    );
     if (gameYear && published && Number(published[1]) < gameYear) {
       c.reason = `Guide was written in ${published[1]}, before this ${gameYear} release — likely an older version`;
       return;

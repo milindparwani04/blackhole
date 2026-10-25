@@ -26,7 +26,11 @@ export async function linkImdbId(db: DB, mediaId: string, tvmazeId: string): Pro
 export function storeImdbId(db: DB, mediaId: string, objectType: 'TV' | 'MOVIE', imdb: string | null): string | null {
   if (!imdb || !/^tt\d{7,10}$/.test(imdb)) return null;
   run(db, `DELETE FROM external_ids WHERE provider = 'IMDB' AND media_id = :m AND external_id != :x`, { m: mediaId, x: imdb });
-  run(db, `INSERT OR IGNORE INTO external_ids (provider, object_type, external_id, media_id) VALUES ('IMDB', :t, :x, :m)`, { t: objectType, x: imdb, m: mediaId });
+  run(db, `INSERT OR IGNORE INTO external_ids (provider, object_type, external_id, media_id) VALUES ('IMDB', :t, :x, :m)`, {
+    t: objectType,
+    x: imdb,
+    m: mediaId,
+  });
   return imdb;
 }
 

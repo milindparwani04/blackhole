@@ -86,10 +86,8 @@ export const api = {
   revertTrophyJob: (jobId: string) => req<MutationResult>('POST', `/api/trophy-jobs/${jobId}/revert`),
   setPlayPlatform: (id: string, platform: string) => req<MutationResult>('POST', `/api/library/${id}/play-platform`, { platform }),
   igdbTime: (id: string) => req<MutationResult & { message: string }>('POST', `/api/games/${id}/igdb-time`),
-  watchEpisode: (id: string, episodeId: string, watched: boolean) =>
-    req<MutationResult>('POST', `/api/tv/${id}/episodes/${episodeId}/watch`, { watched }),
-  watchSeason: (id: string, season: number | 'all', watched: boolean) =>
-    req<MutationResult>('POST', `/api/tv/${id}/seasons/${season}/watch`, { watched }),
+  watchEpisode: (id: string, episodeId: string, watched: boolean) => req<MutationResult>('POST', `/api/tv/${id}/episodes/${episodeId}/watch`, { watched }),
+  watchSeason: (id: string, season: number | 'all', watched: boolean) => req<MutationResult>('POST', `/api/tv/${id}/seasons/${season}/watch`, { watched }),
   syncTv: (id: string) => req<MutationResult>('POST', `/api/tv/${id}/sync`),
   refreshMovieRatings: (id: string) => req<MutationResult & { errors: string[] }>('POST', `/api/movies/${id}/ratings/refresh`),
   previewMovieRatings: (tmdbId: string) => req<MovieRatings>('GET', `/api/movies/preview-ratings?tmdb=${encodeURIComponent(tmdbId)}`),

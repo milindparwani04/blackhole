@@ -290,7 +290,12 @@ function GlobalSearch() {
                   <div className="search-cmds">
                     <span className="muted">Find new:</span>
                     {COMMANDS.map((c) => (
-                      <button key={c.cmd} className="btn xs" onClick={() => find(c.type)} title={`Search ${TYPE_LABEL[c.type].many.toLowerCase()} for “${text}”`}>
+                      <button
+                        key={c.cmd}
+                        className="btn xs"
+                        onClick={() => find(c.type)}
+                        title={`Search ${TYPE_LABEL[c.type].many.toLowerCase()} for “${text}”`}
+                      >
                         /{c.cmd}
                       </button>
                     ))}
@@ -304,4 +309,3 @@ function GlobalSearch() {
     </div>
   );
 }
-

@@ -1,6 +1,16 @@
 import type { MediaType } from '../../../../packages/shared/src/index';
 
-const base = { width: 20, height: 20, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.5, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const, 'aria-hidden': true };
+const base = {
+  width: 20,
+  height: 20,
+  viewBox: '0 0 24 24',
+  fill: 'none',
+  stroke: 'currentColor',
+  strokeWidth: 1.5,
+  strokeLinecap: 'round' as const,
+  strokeLinejoin: 'round' as const,
+  'aria-hidden': true,
+};
 
 export const GameIcon = (p: { size?: number }) => (
   <svg {...base} width={p.size ?? 20} height={p.size ?? 20}>
@@ -63,7 +73,17 @@ export function Logo({ size = 44 }: { size?: number }) {
       </defs>
       <circle cx="32" cy="32" r="22" fill="url(#bh-glow)" />
       <circle cx="32" cy="32" r="14" fill="#000" style={{ stroke: 'var(--text)' }} strokeWidth="1.6" />
-      <ellipse cx="32" cy="33" rx="29" ry="6.5" fill="none" style={{ stroke: 'var(--accent-2)' }} strokeWidth="1.4" transform="rotate(-14 32 33)" opacity="0.9" />
+      <ellipse
+        cx="32"
+        cy="33"
+        rx="29"
+        ry="6.5"
+        fill="none"
+        style={{ stroke: 'var(--accent-2)' }}
+        strokeWidth="1.4"
+        transform="rotate(-14 32 33)"
+        opacity="0.9"
+      />
     </svg>
   );
 }

@@ -7,7 +7,18 @@ import { AppError } from '../security/errors.js';
  * Owner decision 2026-10-25: the same rules cover one Rotten Tomatoes /m/ page per movie (audience score), and the
  * owner's own Letterboxd film/watchlist grid pages for the one-off import (adapters/letterboxd.ts).
  */
-const PAGE_HOSTS = new Set(['www.powerpyx.com', 'powerpyx.com', 'knoef.info', 'www.knoef.info', 'www.playstationtrophies.org', 'playstationtrophies.org', 'psnprofiles.com', 'www.psnprofiles.com', 'www.rottentomatoes.com', 'letterboxd.com']);
+const PAGE_HOSTS = new Set([
+  'www.powerpyx.com',
+  'powerpyx.com',
+  'knoef.info',
+  'www.knoef.info',
+  'www.playstationtrophies.org',
+  'playstationtrophies.org',
+  'psnprofiles.com',
+  'www.psnprofiles.com',
+  'www.rottentomatoes.com',
+  'letterboxd.com',
+]);
 const UA = 'Blackhole/0.1 (local personal media library)';
 const MAX_BYTES = 2_000_000;
 const DAY = 24 * 60 * 60 * 1000;
@@ -58,7 +69,13 @@ export function parseRobots(txt: string): RobotsRule[] {
 export function robotsAllows(rules: RobotsRule[], path: string): boolean {
   let best: RobotsRule | null = null;
   for (const r of rules) {
-    const re = new RegExp('^' + r.path.replace(/[.+?^{}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*').replace(/\\\$$|\$$/, '$'));
+    const re = new RegExp(
+      '^' +
+        r.path
+          .replace(/[.+?^{}()|[\]\\]/g, '\\$&')
+          .replace(/\*/g, '.*')
+          .replace(/\\\$$|\$$/, '$'),
+    );
     if (re.test(path) && (!best || r.path.length > best.path.length || (r.path.length === best.path.length && r.allow))) best = r;
   }
   return best ? best.allow : true;
@@ -125,8 +142,10 @@ export function fetchGuidePage(url: string): Promise<string> {
 async function fetchNow(url: string): Promise<string> {
   const u = new URL(url);
   if (u.protocol !== 'https:' || !PAGE_HOSTS.has(u.hostname)) throw new AppError('PERMISSION_REQUIRED', `${u.hostname} is not an approved guide site`);
-  if ((blockedUntil.get(u.hostname) ?? 0) > Date.now()) throw new AppError('PERMISSION_REQUIRED', `${u.hostname} shows a bot check to automated readers — open the guide link instead`);
-  if (!robotsAllows(await robotsFor(u.origin), u.pathname)) throw new AppError('PERMISSION_REQUIRED', `${u.hostname}'s robots.txt does not allow reading this page`);
+  if ((blockedUntil.get(u.hostname) ?? 0) > Date.now())
+    throw new AppError('PERMISSION_REQUIRED', `${u.hostname} shows a bot check to automated readers — open the guide link instead`);
+  if (!robotsAllows(await robotsFor(u.origin), u.pathname))
+    throw new AppError('PERMISSION_REQUIRED', `${u.hostname}'s robots.txt does not allow reading this page`);
   let res: Response;
   try {
     res = await fetch(u, { headers: { 'User-Agent': UA, Accept: 'text/html' }, signal: AbortSignal.timeout(12_000), redirect: 'follow' });
@@ -146,7 +165,21 @@ async function fetchNow(url: string): Promise<string> {
 
 // ---------- extraction ----------
 
-const ENTITIES: Record<string, string> = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ', ndash: '–', mdash: '—', rsquo: '’', lsquo: '‘', ldquo: '“', rdquo: '”', hellip: '…' };
+const ENTITIES: Record<string, string> = {
+  amp: '&',
+  lt: '<',
+  gt: '>',
+  quot: '"',
+  apos: "'",
+  nbsp: ' ',
+  ndash: '–',
+  mdash: '—',
+  rsquo: '’',
+  lsquo: '‘',
+  ldquo: '“',
+  rdquo: '”',
+  hellip: '…',
+};
 
 export function htmlToText(html: string): string {
   return html
@@ -167,7 +200,9 @@ export function htmlToText(html: string): string {
  * so reader comments further down the page can never supply values.
  */
 export function roadmapBox(text: string): string | null {
-  const start = text.search(/estimated\s+trophy\s+difficulty|approximate\s+(?:amount\s+of\s+)?time\s+to\s+(?:platinum|\/?\s*100)|minimum\s+(?:number\s+of\s+)?playthroughs/i);
+  const start = text.search(
+    /estimated\s+trophy\s+difficulty|approximate\s+(?:amount\s+of\s+)?time\s+to\s+(?:platinum|\/?\s*100)|minimum\s+(?:number\s+of\s+)?playthroughs/i,
+  );
   if (start < 0) return null;
   let box = text.slice(start, start + 1500);
   const cut = box.search(/\n\s*(?:\d+\s+)?(?:comments?|leave a (?:reply|comment)|related posts)\b/i);

@@ -272,14 +272,18 @@ function GamePanel({ d, act }: { d: EntryDetail; act: Act }) {
             on={!!entry.story_completed_at}
             label="Story completed"
             when={entry.story_completed_at}
-            onClick={() => act(() => api.complete(id, 'STORY', !entry.story_completed_at), entry.story_completed_at ? 'Story completion cleared' : 'Story completed')}
+            onClick={() =>
+              act(() => api.complete(id, 'STORY', !entry.story_completed_at), entry.story_completed_at ? 'Story completion cleared' : 'Story completed')
+            }
           />
           {g.platinum_applicable && (
             <Toggle
               on={!!entry.platinum_earned_at}
               label="Platinum earned"
               when={entry.platinum_earned_at}
-              onClick={() => act(() => api.complete(id, 'PLATINUM', !entry.platinum_earned_at), entry.platinum_earned_at ? 'Platinum cleared' : 'Platinum earned')}
+              onClick={() =>
+                act(() => api.complete(id, 'PLATINUM', !entry.platinum_earned_at), entry.platinum_earned_at ? 'Platinum cleared' : 'Platinum earned')
+              }
             />
           )}
         </div>
@@ -304,7 +308,9 @@ function GamePanel({ d, act }: { d: EntryDetail; act: Act }) {
         ) : (
           <>
             <TrophyJobStatus d={d} act={act} />
-            {!stack && !editing && g.trophy_job?.status !== 'RUNNING' && <div className="muted sm">Platinum: unknown — no guide values recorded for {g.play_ps}.</div>}
+            {!stack && !editing && g.trophy_job?.status !== 'RUNNING' && (
+              <div className="muted sm">Platinum: unknown — no guide values recorded for {g.play_ps}.</div>
+            )}
             {stack && !editing && <TrophyCard t={stack} onRemove={() => act(() => api.deleteTrophy(id, stack.id), 'Trophy values removed')} />}
             {editing && <TrophyForm d={d} initial={stack} onDone={() => setEditing(false)} act={act} />}
             <button
@@ -331,8 +337,13 @@ function TrophyCard({ t, onRemove }: { t: TrophyGuide; onRemove: () => void }) {
   return (
     <div className="trophy-card">
       <div className="row between">
-        <span className={`pill ${t.platinum === 'YES' ? 'good' : ''}`}>{t.platinum === 'YES' ? 'Has Platinum' : t.platinum === 'NO' ? 'No Platinum' : 'Platinum unknown'}</span>
-        <span className={`pill ${t.user_locked ? '' : 'auto'}`} title={t.user_locked ? 'Entered or edited by you; lookups never overwrite it without asking' : 'Filled automatically from a guide summary'}>
+        <span className={`pill ${t.platinum === 'YES' ? 'good' : ''}`}>
+          {t.platinum === 'YES' ? 'Has Platinum' : t.platinum === 'NO' ? 'No Platinum' : 'Platinum unknown'}
+        </span>
+        <span
+          className={`pill ${t.user_locked ? '' : 'auto'}`}
+          title={t.user_locked ? 'Entered or edited by you; lookups never overwrite it without asking' : 'Filled automatically from a guide summary'}
+        >
           {t.user_locked ? 'Manual' : 'Auto'}
         </span>
       </div>
@@ -470,7 +481,6 @@ function Evidence({ url, excerpt }: { url: string; excerpt: string }) {
   );
 }
 
-
 function Toggle({ on, label, when, onClick }: { on: boolean; label: string; when: string | null; onClick: () => void }) {
   return (
     <button className={`toggle ${on ? 'on' : ''}`} aria-pressed={on} onClick={onClick}>
@@ -497,13 +507,31 @@ function TimeRow({ category, d, act }: { category: TimeCategory; d: EntryDetail;
         className="time-form"
         onSubmit={async (e) => {
           e.preventDefault();
-          const r = await act(() => api.setTime(d.entry.id, { category, hours: hours === '' ? null : Number(hours), source: source || null, source_url: url || null }));
+          const r = await act(() =>
+            api.setTime(d.entry.id, { category, hours: hours === '' ? null : Number(hours), source: source || null, source_url: url || null }),
+          );
           if (r) setEdit(false);
         }}
       >
         <span className="lbl">{TIME_LABEL[category]}</span>
-        <input className="input xs" type="number" min="0" step="0.5" placeholder="hours" value={hours} onChange={(e) => setHours(e.target.value)} aria-label={`${TIME_LABEL[category]} hours`} autoFocus />
-        <input className="input" placeholder="Source (e.g. HowLongToBeat)" value={source} onChange={(e) => setSource(e.target.value)} aria-label="Source name" />
+        <input
+          className="input xs"
+          type="number"
+          min="0"
+          step="0.5"
+          placeholder="hours"
+          value={hours}
+          onChange={(e) => setHours(e.target.value)}
+          aria-label={`${TIME_LABEL[category]} hours`}
+          autoFocus
+        />
+        <input
+          className="input"
+          placeholder="Source (e.g. HowLongToBeat)"
+          value={source}
+          onChange={(e) => setSource(e.target.value)}
+          aria-label="Source name"
+        />
         <input className="input" placeholder="https:// source link" value={url} onChange={(e) => setUrl(e.target.value)} aria-label="Source link" />
         <div className="row gap">
           <button className="btn primary sm">Save</button>
@@ -745,18 +773,22 @@ function TvPanel({ d, act }: { d: EntryDetail; act: Act }) {
           {season && (
             <>
               <div className="row between">
-                <span className="muted sm">
-                  {season.is_special ? 'Specials are excluded from progress' : `${season.watched}/${season.eligible} watched`}
-                </span>
+                <span className="muted sm">{season.is_special ? 'Specials are excluded from progress' : `${season.watched}/${season.eligible} watched`}</span>
                 {!season.is_special && (
                   <span className="row gap">
                     {season.watched < season.eligible && (
-                      <ConfirmButton confirm={`Mark ${season.eligible - season.watched} watched`} onConfirm={() => act(() => api.watchSeason(id, season.number, true), `Season ${season.number} marked watched`)}>
+                      <ConfirmButton
+                        confirm={`Mark ${season.eligible - season.watched} watched`}
+                        onConfirm={() => act(() => api.watchSeason(id, season.number, true), `Season ${season.number} marked watched`)}
+                      >
                         Mark season watched
                       </ConfirmButton>
                     )}
                     {season.watched > 0 && (
-                      <ConfirmButton confirm="Clear season" onConfirm={() => act(() => api.watchSeason(id, season.number, false), `Season ${season.number} cleared`)}>
+                      <ConfirmButton
+                        confirm="Clear season"
+                        onConfirm={() => act(() => api.watchSeason(id, season.number, false), `Season ${season.number} cleared`)}
+                      >
                         Clear
                       </ConfirmButton>
                     )}
@@ -771,20 +803,33 @@ function TvPanel({ d, act }: { d: EntryDetail; act: Act }) {
                         type="checkbox"
                         checked={e.watched}
                         disabled={!e.released && !e.watched}
-                        onChange={() => act(() => api.watchEpisode(id, e.id, !e.watched), `${season.is_special ? 'Special' : `S${season.number}`}E${e.number} ${e.watched ? 'unwatched' : 'watched'}`)}
+                        onChange={() =>
+                          act(
+                            () => api.watchEpisode(id, e.id, !e.watched),
+                            `${season.is_special ? 'Special' : `S${season.number}`}E${e.number} ${e.watched ? 'unwatched' : 'watched'}`,
+                          )
+                        }
                       />
                       <span className="ep-num">E{e.number}</span>
                       <span className="ep-title">{e.title ?? `Episode ${e.number}`}</span>
                     </label>
                     <span className="muted sm">{e.released ? fmtDate(e.airdate) : e.airdate ? `Airs ${fmtDate(e.airdate)}` : 'TBA'}</span>
-                    {e.rating && showReviews && <span className="ep-rating" title={`${e.rating.provider} rating`}>{e.rating.score.toFixed(1)}</span>}
+                    {e.rating && showReviews && (
+                      <span className="ep-rating" title={`${e.rating.provider} rating`}>
+                        {e.rating.score.toFixed(1)}
+                      </span>
+                    )}
                   </li>
                 ))}
               </ol>
             </>
           )}
           {regular.length > 1 && p.watched < p.eligible && (
-            <ConfirmButton confirm={`Mark all ${p.eligible - p.watched} watched`} onConfirm={() => act(() => api.watchSeason(id, 'all', true), 'All released episodes marked watched')} className="btn ghost sm wide">
+            <ConfirmButton
+              confirm={`Mark all ${p.eligible - p.watched} watched`}
+              onConfirm={() => act(() => api.watchSeason(id, 'all', true), 'All released episodes marked watched')}
+              className="btn ghost sm wide"
+            >
               Mark every released episode watched
             </ConfirmButton>
           )}
@@ -820,7 +865,16 @@ function BookPanel({ d, act }: { d: EntryDetail; act: Act }) {
             if (r) setEditPages(false);
           }}
         >
-          <input className="input xs" type="number" min="1" value={pages} onChange={(e) => setPages(e.target.value)} placeholder="pages" aria-label="Pages in your edition" autoFocus />
+          <input
+            className="input xs"
+            type="number"
+            min="1"
+            value={pages}
+            onChange={(e) => setPages(e.target.value)}
+            placeholder="pages"
+            aria-label="Pages in your edition"
+            autoFocus
+          />
           <input className="input" value={isbn} onChange={(e) => setIsbn(e.target.value)} placeholder="ISBN (optional)" aria-label="ISBN" />
           <button className="btn primary sm">Save</button>
         </form>
@@ -847,8 +901,19 @@ function BookPanel({ d, act }: { d: EntryDetail; act: Act }) {
             onTouchEnd={() => savePage(page)}
             aria-label="Current page"
           />
-          <input className="input xs" type="number" min={0} max={ed.pages} value={page} onChange={(e) => setPage(Number(e.target.value))} onBlur={() => savePage(page)} aria-label="Current page number" />
-          <span className="sm">/ {ed.pages} · {pct(page, ed.pages)}%</span>
+          <input
+            className="input xs"
+            type="number"
+            min={0}
+            max={ed.pages}
+            value={page}
+            onChange={(e) => setPage(Number(e.target.value))}
+            onBlur={() => savePage(page)}
+            aria-label="Current page number"
+          />
+          <span className="sm">
+            / {ed.pages} · {pct(page, ed.pages)}%
+          </span>
         </div>
       ) : (
         <div className="muted sm">Set your edition’s page count to track progress.</div>
@@ -906,7 +971,14 @@ function PersonalPanel({ d, act }: { d: EntryDetail; act: Act }) {
       </label>
       <label className="block">
         <span className="lbl">Notes</span>
-        <textarea className="input" rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} onBlur={() => notes !== entry.notes && patch({ notes }, 'Notes saved')} placeholder="Private notes…" />
+        <textarea
+          className="input"
+          rows={3}
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          onBlur={() => notes !== entry.notes && patch({ notes }, 'Notes saved')}
+          placeholder="Private notes…"
+        />
       </label>
     </section>
   );
@@ -926,7 +998,11 @@ function MetadataEditor({ d, act }: { d: EntryDetail; act: Act }) {
     synopsis: m.synopsis ?? '',
   });
   const set = (k: keyof typeof f) => (e: { target: { value: string } }) => setF({ ...f, [k]: e.target.value });
-  const list = (s: string) => s.split(',').map((x) => x.trim()).filter(Boolean);
+  const list = (s: string) =>
+    s
+      .split(',')
+      .map((x) => x.trim())
+      .filter(Boolean);
   return (
     <details className="insp-section" open={open} onToggle={(e) => setOpen((e.target as HTMLDetailsElement).open)}>
       <summary className="h-sub">EDIT DETAILS</summary>

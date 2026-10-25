@@ -37,7 +37,10 @@ export function ImportPanel() {
           setPicked(new Set(j.items.filter((i) => !i.in_pit).map((i) => i.key)));
         } else if (j.kind === 'IMPORT' && j.result) {
           const r = j.result;
-          notify(`Added ${r.added} to the Pit${r.skipped ? ` · ${r.skipped} already there` : ''}${r.failed.length ? ` · ${r.failed.length} failed: ${r.failed.slice(0, 3).join(', ')}` : ''}`, { error: r.failed.length > 0 });
+          notify(
+            `Added ${r.added} to the Pit${r.skipped ? ` · ${r.skipped} already there` : ''}${r.failed.length ? ` · ${r.failed.length} failed: ${r.failed.slice(0, 3).join(', ')}` : ''}`,
+            { error: r.failed.length > 0 },
+          );
           setItems(null);
           bump();
         }
@@ -116,8 +119,8 @@ export function ImportPanel() {
         <h1 className="h-title">IMPORT</h1>
       </div>
       <p className="muted sm">
-        A one-off copy of what you already track elsewhere. Your status and rating come across (Letterboxd ½★ = 1 point, Goodreads ★ = 2 points, out of 10). Nothing is added until you review the list, and
-        titles already in the Pit are left as they are.
+        A one-off copy of what you already track elsewhere. Your status and rating come across (Letterboxd ½★ = 1 point, Goodreads ★ = 2 points, out of 10).
+        Nothing is added until you review the list, and titles already in the Pit are left as they are.
       </p>
       <div className="import-sources">
         <form
@@ -133,14 +136,31 @@ export function ImportPanel() {
             <a href="https://letterboxd.com/settings/data/" target="_blank" rel="noopener noreferrer">
               Settings → Data → Export your data ↗
             </a>{' '}
-            and choose the ZIP here (it includes your diary dates). <b>Quick:</b> paste your profile link. Letterboxd only shows automated readers your most recent films, plus your whole watchlist.
+            and choose the ZIP here (it includes your diary dates). <b>Quick:</b> paste your profile link. Letterboxd only shows automated readers your most
+            recent films, plus your whole watchlist.
           </div>
           <div className="row gap wrap">
-            <input ref={lbFile} type="file" accept=".zip,.csv" multiple className="sr-only" id="letterboxd-export" onChange={(e) => readExport(e.target.files)} disabled={running} />
+            <input
+              ref={lbFile}
+              type="file"
+              accept=".zip,.csv"
+              multiple
+              className="sr-only"
+              id="letterboxd-export"
+              onChange={(e) => readExport(e.target.files)}
+              disabled={running}
+            />
             <label htmlFor="letterboxd-export" className={`btn primary ${running ? 'disabled' : ''}`} aria-disabled={running}>
               Choose export ZIP…
             </label>
-            <input className="input import-input" value={profile} onChange={(e) => setProfile(e.target.value)} placeholder="or https://letterboxd.com/yourname/" aria-label="Letterboxd profile link" disabled={running} />
+            <input
+              className="input import-input"
+              value={profile}
+              onChange={(e) => setProfile(e.target.value)}
+              placeholder="or https://letterboxd.com/yourname/"
+              aria-label="Letterboxd profile link"
+              disabled={running}
+            />
             <button className="btn ghost" disabled={running || !profile.trim()}>
               Read profile
             </button>
@@ -153,10 +173,19 @@ export function ImportPanel() {
             <a href="https://www.goodreads.com/review/import" target="_blank" rel="noopener noreferrer">
               My Books → Import and export ↗
             </a>
-            , click Export Library, then choose the CSV here. Read becomes Completed, Currently reading becomes In progress, Want to read becomes Planned, and DNF shelves become Dropped.
+            , click Export Library, then choose the CSV here. Read becomes Completed, Currently reading becomes In progress, Want to read becomes Planned, and
+            DNF shelves become Dropped.
           </div>
           <div className="row gap">
-            <input ref={file} type="file" accept=".csv,text/csv" className="sr-only" id="goodreads-csv" onChange={(e) => readCsv(e.target.files?.[0])} disabled={running} />
+            <input
+              ref={file}
+              type="file"
+              accept=".csv,text/csv"
+              className="sr-only"
+              id="goodreads-csv"
+              onChange={(e) => readCsv(e.target.files?.[0])}
+              disabled={running}
+            />
             <label htmlFor="goodreads-csv" className={`btn primary ${running ? 'disabled' : ''}`} aria-disabled={running}>
               Choose CSV…
             </label>
@@ -203,7 +232,13 @@ export function ImportPanel() {
                 {shown.map((i) => (
                   <tr key={i.key} className={i.in_pit ? 'dim' : ''}>
                     <td>
-                      <input type="checkbox" checked={picked.has(i.key)} disabled={!!i.in_pit} onChange={() => toggle(i.key)} aria-label={`Import ${i.title}`} />
+                      <input
+                        type="checkbox"
+                        checked={picked.has(i.key)}
+                        disabled={!!i.in_pit}
+                        onChange={() => toggle(i.key)}
+                        aria-label={`Import ${i.title}`}
+                      />
                     </td>
                     <td>
                       <Cover media={{ cover_url: i.match?.cover_url ?? null, title: i.title, type: i.type }} />

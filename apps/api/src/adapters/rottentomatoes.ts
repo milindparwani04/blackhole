@@ -39,7 +39,8 @@ export function rtSlug(title: string): string {
 
 /** Reads the page's identity and audience score. Returns null when the page isn't this movie or has no score yet. */
 export function parseRtPage(html: string, title: string, year: number | null): Omit<RtAudience, 'url'> | null {
-  const named = /"titleName":"((?:[^"\\]|\\.)*)"/.exec(html)?.[1] ?? /property="og:title" content="([^"]*)"/.exec(html)?.[1]?.replace(/\s*\|\s*Rotten Tomatoes\s*$/, '');
+  const named =
+    /"titleName":"((?:[^"\\]|\\.)*)"/.exec(html)?.[1] ?? /property="og:title" content="([^"]*)"/.exec(html)?.[1]?.replace(/\s*\|\s*Rotten Tomatoes\s*$/, '');
   if (!named) return null;
   const pageTitle = named.replace(/\s*\(\d{4}\)\s*$/, '');
   const pageYear = Number(/"releaseYear":"?(\d{4})/.exec(html)?.[1] ?? /\((\d{4})\)\s*$/.exec(named)?.[1]) || null;

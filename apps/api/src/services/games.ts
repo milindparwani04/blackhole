@@ -16,7 +16,9 @@ export async function refreshIgdbTime(db: DB, entryId: string): Promise<string> 
   if (!row) throw new AppError('NOT_FOUND', 'Library entry not found');
   if (!row.external_id) throw new AppError('VALIDATION_ERROR', 'This game is not linked to IGDB');
   if (!igdbConfigured()) throw new AppError('PERMISSION_REQUIRED', 'IGDB keys are not set');
-  const locked = get<{ user_locked: number }>(db, `SELECT user_locked FROM game_time_estimates WHERE media_id = :m AND category = 'NORMAL'`, { m: row.media_id });
+  const locked = get<{ user_locked: number }>(db, `SELECT user_locked FROM game_time_estimates WHERE media_id = :m AND category = 'NORMAL'`, {
+    m: row.media_id,
+  });
   if (locked?.user_locked) return 'Kept your own normal time (IGDB value not applied)';
   const t = await normalTimeToBeat(row.external_id);
   if (!t) return 'IGDB has no time-to-beat submissions for this game yet';

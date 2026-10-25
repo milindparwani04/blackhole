@@ -6,7 +6,9 @@ import type { LibraryRow } from './index.js';
  */
 export function backlogSlots(rows: LibraryRow[], n = 5): LibraryRow[] {
   const active = rows.filter((r) => r.entry.status === 'IN_PROGRESS').sort((a, b) => b.entry.updated_at.localeCompare(a.entry.updated_at));
-  const waiting = rows.filter((r) => r.entry.status === 'PLANNED' || r.entry.status === 'PAUSED').sort((a, b) => b.entry.created_at.localeCompare(a.entry.created_at));
+  const waiting = rows
+    .filter((r) => r.entry.status === 'PLANNED' || r.entry.status === 'PAUSED')
+    .sort((a, b) => b.entry.created_at.localeCompare(a.entry.created_at));
   return [...active, ...waiting].slice(0, n);
 }
 

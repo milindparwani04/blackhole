@@ -48,7 +48,9 @@ describe('movie ratings on add', () => {
       vi.fn(async (url: URL | string) => {
         const u = new URL(String(url));
         if (u.hostname === 'api.themoviedb.org')
-          return new Response(JSON.stringify({ id: 438631, title: 'Dune', release_date: '2021-09-15', runtime: 155, imdb_id: 'tt1160419', genres: [], credits: { crew: [] } }));
+          return new Response(
+            JSON.stringify({ id: 438631, title: 'Dune', release_date: '2021-09-15', runtime: 155, imdb_id: 'tt1160419', genres: [], credits: { crew: [] } }),
+          );
         if (u.hostname === 'datasets.imdbws.com') return new Response(ratings);
         if (u.pathname === '/robots.txt') return new Response('User-agent: *\nDisallow: /search\n');
         if (u.pathname === '/m/dune_2021') return new Response(rtPage('Dune (2021)', 2021, '"90"'));
