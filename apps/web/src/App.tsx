@@ -8,10 +8,11 @@ import { LibraryView } from './features/LibraryView';
 import { Inspector } from './features/Inspector';
 import { AddModal } from './features/AddModal';
 import { DataView } from './features/DataView';
+import { SettingsView } from './features/SettingsView';
 import { TYPE_LABEL } from './format';
 import { COMMANDS, matchCommands, parseSearch } from './searchCommand';
 
-type View = { kind: 'dashboard' } | { kind: 'library'; type: MediaType } | { kind: 'archive' } | { kind: 'data' };
+type View = { kind: 'dashboard' } | { kind: 'library'; type: MediaType } | { kind: 'archive' } | { kind: 'data' } | { kind: 'settings' };
 
 const ROUTES: Record<string, View> = {
   '': { kind: 'dashboard' },
@@ -21,6 +22,7 @@ const ROUTES: Record<string, View> = {
   books: { kind: 'library', type: 'BOOK' },
   archive: { kind: 'archive' },
   data: { kind: 'data' },
+  settings: { kind: 'settings' },
 };
 const SLUG: Record<MediaType, string> = { GAME: 'games', MOVIE: 'movies', TV: 'tv', BOOK: 'books' };
 const readRoute = (): View => ROUTES[location.hash.replace(/^#\/?/, '')] ?? { kind: 'dashboard' };
@@ -126,6 +128,9 @@ export function App() {
             <button className={`nav-item ${view.kind === 'data' ? 'active' : ''}`} onClick={() => go('data')}>
               <span className="slash">/</span> Data &amp; Sources
             </button>
+            <button className={`nav-item ${view.kind === 'settings' ? 'active' : ''}`} onClick={() => go('settings')}>
+              <span className="slash">/</span> Settings
+            </button>
           </div>
         </nav>
 
@@ -134,6 +139,7 @@ export function App() {
           {view.kind === 'library' && <LibraryView key={view.type} type={view.type} />}
           {view.kind === 'archive' && <LibraryView key="archive" archived />}
           {view.kind === 'data' && <DataView />}
+          {view.kind === 'settings' && <SettingsView />}
         </main>
 
         {selectedId && <Inspector key={selectedId} id={selectedId} />}

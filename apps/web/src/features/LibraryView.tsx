@@ -4,12 +4,14 @@ import { api } from '../api';
 import { useApp } from '../context';
 import { Cover, DifficultyBar, Empty, MovieRatingBadges, StatusPill } from '../components/Bits';
 import { TypeIcon } from '../components/Icons';
+import { useSettings } from '../settings';
 import { fmtDate, fmtHours, fmtRange, pct, STATUS_LABEL, TYPE_LABEL } from '../format';
 
 type Sort = 'added' | 'title' | 'normal' | 'platinum' | 'difficulty' | 'year' | 'imdb' | 'rt';
 
 export function LibraryView({ type, archived }: { type?: MediaType; archived?: boolean }) {
   const { version, openAdd } = useApp();
+  const { showReviews } = useSettings();
   const [rows, setRows] = useState<LibraryRow[] | null>(null);
   const [status, setStatus] = useState<Status | ''>('');
   const [platform, setPlatform] = useState('');
@@ -41,8 +43,8 @@ export function LibraryView({ type, archived }: { type?: MediaType; archived?: b
         return h == null ? includeUnknown : h <= cap;
       });
     }
-    if (minImdb) list = list.filter((r) => (r.ratings?.imdb ? r.ratings.imdb.score >= Number(minImdb) : includeUnknown));
-    if (minRt) list = list.filter((r) => (r.ratings?.rt_audience ? r.ratings.rt_audience.score >= Number(minRt) : includeUnknown));
+    if (minImdb && showReviews) list = list.filter((r) => (r.ratings?.imdb ? r.ratings.imdb.score >= Number(minImdb) : includeUnknown));
+    if (minRt && showReviews) list = list.filter((r) => (r.ratings?.rt_audience ? r.ratings.rt_audience.score >= Number(minRt) : includeUnknown));
     const num = (v: number | null | undefined) => (v == null ? Infinity : v);
     const sorted = [...list];
     if (sort === 'title') sorted.sort((a, b) => a.media.title.localeCompare(b.media.title));
@@ -51,11 +53,11 @@ export function LibraryView({ type, archived }: { type?: MediaType; archived?: b
     if (sort === 'normal') sorted.sort((a, b) => num(a.normal_hours) - num(b.normal_hours));
     if (sort === 'platinum') sorted.sort((a, b) => num(a.platinum_hours?.max ?? a.platinum_hours?.min) - num(b.platinum_hours?.max ?? b.platinum_hours?.min));
     // Highest rated first; unknown last.
-    if (sort === 'imdb') sorted.sort((a, b) => num(a.ratings?.imdb ? -a.ratings.imdb.score : null) - num(b.ratings?.imdb ? -b.ratings.imdb.score : null));
-    if (sort === 'rt') sorted.sort((a, b) => num(a.ratings?.rt_audience ? -a.ratings.rt_audience.score : null) - num(b.ratings?.rt_audience ? -b.ratings.rt_audience.score : null));
+    if (sort === 'imdb' && showReviews) sorted.sort((a, b) => num(a.ratings?.imdb ? -a.ratings.imdb.score : null) - num(b.ratings?.imdb ? -b.ratings.imdb.score : null));
+    if (sort === 'rt' && showReviews) sorted.sort((a, b) => num(a.ratings?.rt_audience ? -a.ratings.rt_audience.score : null) - num(b.ratings?.rt_audience ? -b.ratings.rt_audience.score : null));
     if (sort === 'difficulty') sorted.sort((a, b) => num(a.difficulty?.max ?? a.difficulty?.min) - num(b.difficulty?.max ?? b.difficulty?.min));
     return sorted;
-  }, [rows, text, platform, sort, maxPlat, minImdb, minRt, includeUnknown]);
+  }, [rows, text, platform, sort, maxPlat, minImdb, minRt, includeUnknown, showReviews]);
 
   const done = (rows ?? []).filter((r) => r.entry.status === 'COMPLETED').length;
   const title = archived ? 'ARCHIVE' : `${TYPE_LABEL[type!].one.toUpperCase()} BACKLOG`;
@@ -113,7 +115,7 @@ export function LibraryView({ type, archived }: { type?: MediaType; archived?: b
             )}
           </>
         )}
-        {type === 'MOVIE' && (
+        {type === 'MOVIE' && showReviews && (
           <>
             <select className="input" value={minImdb} onChange={(e) => setMinImdb(e.target.value)} aria-label="Minimum IMDb rating">
               <option value="">Any IMDb rating</option>
@@ -150,7 +152,7 @@ export function LibraryView({ type, archived }: { type?: MediaType; archived?: b
               <option value="difficulty">Sort: Difficulty</option>
             </>
           )}
-          {type === 'MOVIE' && (
+          {type === 'MOVIE' && showReviews && (
             <>
               <option value="imdb">Sort: IMDb rating</option>
               <option value="rt">Sort: RT audience</option>
@@ -171,6 +173,7 @@ export function LibraryView({ type, archived }: { type?: MediaType; archived?: b
 }
 
 export function LibraryTable({ type, rows }: { type?: MediaType; rows: LibraryRow[] }) {
+  const { showReviews } = useSettings();
   const { select, selectedId } = useApp();
   return (
     <div className="table-wrap">
@@ -190,7 +193,7 @@ export function LibraryTable({ type, rows }: { type?: MediaType; rows: LibraryRo
             {type === 'MOVIE' && (
               <>
                 <th>Runtime</th>
-                <th>Ratings</th>
+                {showReviews && <th>Ratings</th>}
                 <th>My rating</th>
               </>
             )}
@@ -242,9 +245,11 @@ export function LibraryTable({ type, rows }: { type?: MediaType; rows: LibraryRo
               {type === 'MOVIE' && (
                 <>
                   <td>{r.media.runtime_min ? `${Math.floor(r.media.runtime_min / 60)}h ${r.media.runtime_min % 60}m` : '—'}</td>
-                  <td>
-                    <MovieRatingBadges ratings={r.ratings} />
-                  </td>
+                  {showReviews && (
+                    <td>
+                      <MovieRatingBadges ratings={r.ratings} />
+                    </td>
+                  )}
                   <td>{r.entry.personal_rating != null ? <span className="my-rating">★ {r.entry.personal_rating}</span> : '—'}</td>
                 </>
               )}

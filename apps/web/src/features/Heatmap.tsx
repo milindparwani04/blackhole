@@ -3,6 +3,7 @@ import type { EntryDetail, Episode } from '../../../../packages/shared/src/index
 import { api } from '../api';
 import { CloseIcon } from '../components/Icons';
 import { fmtDate } from '../format';
+import { useSettings } from '../settings';
 
 type Act = (fn: () => Promise<any>, message?: string) => Promise<any>;
 
@@ -21,8 +22,10 @@ const ratingClass = (score: number, scale: number) => {
 
 export function Heatmap({ d, act, onClose }: { d: EntryDetail; act: Act; onClose: () => void }) {
   const seasons = d.tv!.seasons.filter((s) => !s.is_special);
+  const { showReviews } = useSettings();
   const hasRatings = seasons.some((s) => s.episodes.some((e) => e.rating));
-  const [mode, setMode] = useState<'ratings' | 'progress'>(hasRatings ? 'ratings' : 'progress');
+  const [chosenMode, setMode] = useState<'ratings' | 'progress'>(hasRatings ? 'ratings' : 'progress');
+  const mode = showReviews ? chosenMode : 'progress';
   const [asList, setAsList] = useState(false);
   const [pos, setPos] = useState<{ s: number; e: number }>({ s: 0, e: 0 });
   const [picked, setPicked] = useState<{ season: number; ep: Episode } | null>(null);
@@ -81,14 +84,14 @@ export function Heatmap({ d, act, onClose }: { d: EntryDetail; act: Act; onClose
             <h2 className="h-title">{d.media.title}</h2>
           </div>
           <div className="row gap wrap">
-            <div className="seg" role="radiogroup" aria-label="Heatmap mode">
+            {showReviews && <div className="seg" role="radiogroup" aria-label="Heatmap mode">
               <button role="radio" aria-checked={mode === 'ratings'} className={mode === 'ratings' ? 'on' : ''} onClick={() => setMode('ratings')}>
                 Ratings
               </button>
               <button role="radio" aria-checked={mode === 'progress'} className={mode === 'progress' ? 'on' : ''} onClick={() => setMode('progress')}>
                 My progress
               </button>
-            </div>
+            </div>}
             <button className="btn ghost sm" onClick={() => setAsList(!asList)} aria-pressed={asList}>
               {asList ? 'Grid view' : 'List view'}
             </button>

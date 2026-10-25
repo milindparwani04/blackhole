@@ -65,15 +65,22 @@ describe('library CRUD', () => {
     expect(b.body.detail.entry.id).toBe(a.body.detail.entry.id);
   });
 
-  it('archives, restores and requires archive + exact title for permanent delete', async () => {
+  it('archives, restores and permanently removes archived entries', async () => {
     const { body } = await add({ type: 'MOVIE', title: 'Heat', year: 1995 });
     const id = body.detail.entry.id;
-    expect((await call('DELETE', `/api/library/${id}`, { confirm_title: 'Heat' })).status).toBe(409);
     await call('POST', `/api/library/${id}/archive`, { archived: true });
     expect((await call('GET', '/api/library?type=MOVIE')).body).toHaveLength(0);
     expect((await call('GET', '/api/library?archived=true')).body).toHaveLength(1);
-    expect((await call('DELETE', `/api/library/${id}`, { confirm_title: 'heat' })).status).toBe(400);
-    expect((await call('DELETE', `/api/library/${id}`, { confirm_title: 'Heat' })).status).toBe(200);
+    expect((await call('DELETE', `/api/library/${id}`)).status).toBe(200);
+    expect((await call('GET', '/api/library?archived=true')).body).toHaveLength(0);
+    expect((await call('GET', `/api/library/${id}`)).status).toBe(404);
+  });
+
+  it('removes an entry straight from the backlog without archiving or typing the title', async () => {
+    const { body } = await add({ type: 'MOVIE', title: 'Ronin', year: 1998 });
+    const id = body.detail.entry.id;
+    expect((await call('DELETE', `/api/library/${id}`)).status).toBe(200);
+    expect((await call('GET', '/api/library?type=MOVIE')).body).toHaveLength(0);
   });
 
   it('enforces optimistic concurrency on PATCH', async () => {
