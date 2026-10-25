@@ -40,8 +40,8 @@ function tmdb<T>(path: string, params: Record<string, string> = {}): Promise<T> 
 
 const poster = (p?: string | null) => (p && /^\/[\w.-]+$/.test(p) ? safeImage(`https://image.tmdb.org/t/p/w342${p}`) : null);
 
-export async function searchMovies(q: string): Promise<SearchResult[]> {
-  const r = await tmdb<{ results: TmdbMovie[] }>('search/movie', { query: q, include_adult: 'false', language: 'en-GB' });
+export async function searchMovies(q: string, year?: number | null): Promise<SearchResult[]> {
+  const r = await tmdb<{ results: TmdbMovie[] }>('search/movie', { query: q, include_adult: 'false', language: 'en-GB', ...(year ? { year: String(year) } : {}) });
   return r.results.slice(0, 15).map((m) => ({
     provider: 'TMDB',
     external_id: String(m.id),

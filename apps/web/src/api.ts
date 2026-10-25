@@ -1,5 +1,7 @@
 import type {
   EntryDetail,
+  ImportItem,
+  ImportJob,
   LibraryRow,
   MediaType,
   MovieRatings,
@@ -95,4 +97,9 @@ export const api = {
   search: (type: MediaType, q: string) => req<SearchResponse>('GET', `/api/search?type=${type}&q=${encodeURIComponent(q)}`),
   backup: () => req<{ file: string; bytes: number }>('POST', '/api/backup'),
   backups: () => req<{ file: string; bytes: number }[]>('GET', '/api/backups'),
+  letterboxdPreview: (profile: string) => req<ImportJob>('POST', '/api/import/letterboxd/preview', { profile }),
+  letterboxdExport: (body: { zip: string } | { files: Record<string, string> }) => req<ImportJob>('POST', '/api/import/letterboxd/export', body),
+  goodreadsPreview: (csv: string) => req<ImportJob>('POST', '/api/import/goodreads/preview', { csv }),
+  importItems: (items: ImportItem[]) => req<ImportJob>('POST', '/api/import', { items }),
+  importJob: (id: string) => req<ImportJob>('GET', `/api/import/jobs/${id}`),
 };

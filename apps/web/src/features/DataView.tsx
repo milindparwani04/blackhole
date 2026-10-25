@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api, ApiError } from '../api';
 import { useApp } from '../context';
+import { ImportPanel } from './ImportPanel';
 
 // Owner decisions, 25/10/2026 (see docs/decisions/OPEN_QUESTIONS.md).
 const DECISIONS = [
@@ -9,7 +10,7 @@ const DECISIONS = [
   ['D-03', 'Episode ratings', 'IMDb episode ratings only; none shown when IMDb has none'],
   ['D-04', 'TV completion', 'Completed when every aired episode is watched; back in the Pit when new episodes air'],
   ['D-05', 'Trophy versions', 'Only the version you play (PS5 default, PS4 for older games); no regions'],
-  ['D-06', 'Letterboxd import', 'Out of scope — movies start from scratch'],
+  ['D-06', 'Imports', 'One-off Letterboxd (export or profile link) and Goodreads (CSV export) imports; revised 25/10/2026'],
   ['D-07', 'Game playtime', 'IGDB “normally” time; your own entries take priority'],
   ['D-08', 'Look & branding', 'Mockup theme approved; subtitle and tagline removed'],
 ];
@@ -135,6 +136,7 @@ export function DataView() {
   return (
     <div className="stack-lg">
       <ApiKeys providers={providers} onChange={load} />
+      <ImportPanel />
       <section className="panel">
         <div className="panel-head">
           <h1 className="h-title">DATA &amp; BACKUPS</h1>
