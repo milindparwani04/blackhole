@@ -97,6 +97,7 @@ h1, h2, h3 { margin: 0; font-weight: 500; }
 .search-hit .title { flex: 1; }
 .search-hit.provider { color: var(--accent-2); border-top: 1px solid var(--line); border-radius: 0; }
 .search-empty { padding: 8px 10px; color: var(--muted); }
+.search-cmds { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; padding: 8px 10px; border-top: 1px solid var(--line); }
 .topbar-meta { display: flex; gap: 24px; align-items: center; justify-self: end; }
 .clock { display: flex; flex-direction: column; font-size: 12px; border-left: 1px solid var(--line); padding-left: 20px; }
 .label { font-size: 10px; letter-spacing: 0.15em; color: var(--muted); }

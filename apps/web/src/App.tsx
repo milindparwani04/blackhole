@@ -9,6 +9,7 @@ import { Inspector } from './features/Inspector';
 import { AddModal } from './features/AddModal';
 import { DataView } from './features/DataView';
 import { TYPE_LABEL } from './format';
+import { COMMANDS, matchCommands, parseSearch } from './searchCommand';
 
 type View = { kind: 'dashboard' } | { kind: 'library'; type: MediaType } | { kind: 'archive' } | { kind: 'data' };
 
@@ -182,34 +183,50 @@ function GlobalSearch() {
       if (e.key === '/' && !(e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLSelectElement)) {
         e.preventDefault();
         input.current?.focus();
+        // "/" from anywhere starts a command: the box opens on "/" with the command list.
+        setQ((v) => v || '/');
+        setOpen(true);
       }
     };
     addEventListener('keydown', onKey);
     return () => removeEventListener('keydown', onKey);
   }, []);
 
+  const { type, text, partial } = parseSearch(q);
+
   useEffect(() => {
-    if (q.trim().length < 1) return setRows([]);
-    const t = setTimeout(() => api.list({ q: q.trim() }).then((r) => setRows(r.slice(0, 7))).catch(() => setRows([])), 150);
+    if (!text) return setRows([]);
+    const t = setTimeout(() => api.list({ q: text, type: type ?? undefined }).then((r) => setRows(r.slice(0, 7))).catch(() => setRows([])), 150);
     return () => clearTimeout(t);
-  }, [q, version]);
+  }, [text, type, version]);
+
+  const find = (t: MediaType) => {
+    setOpen(false);
+    setQ('');
+    openAdd(t, text);
+  };
+  const complete = (cmd: string) => {
+    setQ(`/${cmd} `);
+    input.current?.focus();
+  };
+  const commands = partial !== null ? matchCommands(partial) : [];
 
   return (
     <div className="global-search" onBlur={(e) => !e.currentTarget.contains(e.relatedTarget) && setOpen(false)}>
       <label className="search-box">
-        <SearchIcon />
+        {type ? <TypeIcon type={type} size={16} /> : <SearchIcon />}
         <input
           ref={input}
           value={q}
-          placeholder="Search the universe... (your library, or press Enter to search providers)"
-          aria-label="Search your library"
+          placeholder="Search the Pit… or /game /movie /tv /book + a title to find new ones"
+          aria-label="Search your library, or start with /game, /movie, /tv or /book to search providers"
           onFocus={() => setOpen(true)}
           onChange={(e) => (setQ(e.target.value), setOpen(true))}
           onKeyDown={(e) => {
-            if (e.key === 'Enter' && q.trim()) {
-              setOpen(false);
-              openAdd(undefined, q.trim());
-            }
+            if ((e.key === 'Enter' || e.key === 'Tab') && commands.length === 1) {
+              e.preventDefault();
+              complete(commands[0].cmd);
+            } else if (e.key === 'Enter' && type && text) find(type);
             if (e.key === 'Escape') (setOpen(false), input.current?.blur());
           }}
         />
@@ -217,17 +234,47 @@ function GlobalSearch() {
       </label>
       {open && q.trim() && (
         <div className="search-pop" role="listbox">
-          {rows.map((r) => (
-            <button key={r.entry.id} className="search-hit" onClick={() => (select(r.entry.id), setOpen(false))}>
-              <TypeIcon type={r.media.type} size={16} />
-              <span className="title">{r.media.title}</span>
-              <span className="muted">{r.media.year ?? ''}</span>
-            </button>
-          ))}
-          {!rows.length && <div className="search-empty">Nothing in the Pit matches.</div>}
-          <button className="search-hit provider" onClick={() => (setOpen(false), openAdd(undefined, q.trim()))}>
-            + Find “{q.trim()}” to add to the Pit →
-          </button>
+          {partial !== null ? (
+            <>
+              {commands.map((c) => (
+                <button key={c.cmd} className="search-hit" onClick={() => complete(c.cmd)}>
+                  <TypeIcon type={c.type} size={16} />
+                  <span className="title">/{c.cmd}</span>
+                  <span className="muted">search {TYPE_LABEL[c.type].many.toLowerCase()}</span>
+                </button>
+              ))}
+              {!commands.length && <div className="search-empty">Commands: /game, /movie, /tv, /book</div>}
+            </>
+          ) : (
+            <>
+              {rows.map((r) => (
+                <button key={r.entry.id} className="search-hit" onClick={() => (select(r.entry.id), setOpen(false))}>
+                  <TypeIcon type={r.media.type} size={16} />
+                  <span className="title">{r.media.title}</span>
+                  <span className="muted">{r.media.year ?? ''}</span>
+                </button>
+              ))}
+              {text && !rows.length && <div className="search-empty">Nothing in the Pit matches.</div>}
+              {type && text ? (
+                <button className="search-hit provider" onClick={() => find(type)}>
+                  + Find “{text}” in {TYPE_LABEL[type].many.toLowerCase()} →
+                </button>
+              ) : type ? (
+                <div className="search-empty">Type a title to search {TYPE_LABEL[type].many.toLowerCase()}.</div>
+              ) : (
+                text && (
+                  <div className="search-cmds">
+                    <span className="muted">Find new:</span>
+                    {COMMANDS.map((c) => (
+                      <button key={c.cmd} className="btn xs" onClick={() => find(c.type)} title={`Search ${TYPE_LABEL[c.type].many.toLowerCase()} for “${text}”`}>
+                        /{c.cmd}
+                      </button>
+                    ))}
+                  </div>
+                )
+              )}
+            </>
+          )}
         </div>
       )}
     </div>
