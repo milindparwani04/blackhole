@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useState, type CSSProperties } from 'react';
 import type { LibraryRow, MediaType } from '../../../../packages/shared/src/index';
-import { backlogSlots } from '../../../../packages/shared/src/backlog';
+import { backlogSlots, fitRowCount } from '../../../../packages/shared/src/backlog';
 import { api, type Stats } from '../api';
 import { useApp } from '../context';
 import { Cover, DifficultyBar, Empty, MovieRatingBadges, Ring } from '../components/Bits';
@@ -65,24 +65,19 @@ export function Dashboard({ stats }: { stats: Stats | null }) {
 
 function BacklogPanel({ type, rows, loading }: { type: MediaType; rows: LibraryRow[]; loading: boolean }) {
   const { select, selectedId, openAdd } = useApp();
-  const slots = backlogSlots(rows, SLOTS);
+  const [list, setList] = useState<HTMLOListElement | null>(null);
+  const fit = useFitRows(list, SLOTS);
+  const slots = backlogSlots(rows, fit.rows);
   const backlog = rows.filter((r) => ['PLANNED', 'PAUSED', 'IN_PROGRESS'].includes(r.entry.status)).length;
   const active = rows.filter((r) => r.entry.status === 'IN_PROGRESS').length;
   const done = rows.filter((r) => r.entry.status === 'COMPLETED').length;
 
   return (
     <div className="panel backlog-panel">
-      <div className="panel-head">
-        <div className="row gap">
-          <TypeIcon type={type} size={26} />
-          <div>
-            <h2 className="h-section">{TYPE_LABEL[type].one.toUpperCase()} BACKLOG</h2>
-            <div className="eyebrow muted">
-              {backlog} IN THE PIT · {active} {TYPE_LABEL[type].verb.toUpperCase()} · {done} {TYPE_LABEL[type].done.toUpperCase()}
-            </div>
-          </div>
-        </div>
-        <div className="row gap">
+      <div className="bl-head">
+        <TypeIcon type={type} size={26} />
+        <h2 className="h-section bl-title">{TYPE_LABEL[type].one.toUpperCase()} BACKLOG</h2>
+        <div className="row gap bl-actions">
           <a className="link-more" href={`#/${SLUG[type]}`}>
             VIEW ALL →
           </a>
@@ -90,13 +85,16 @@ function BacklogPanel({ type, rows, loading }: { type: MediaType; rows: LibraryR
             + ADD
           </button>
         </div>
+        <div className="eyebrow muted bl-meta">
+          {backlog} IN THE PIT · {active} {TYPE_LABEL[type].verb.toUpperCase()} · {done} {TYPE_LABEL[type].done.toUpperCase()}
+        </div>
       </div>
       {loading ? (
         <Empty>Loading…</Empty>
       ) : slots.length === 0 ? (
         <Empty>{rows.length ? `Nothing left in the ${TYPE_LABEL[type].one.toLowerCase()} backlog.` : 'Nothing here yet.'}</Empty>
       ) : (
-        <ol className="backlog-list">
+        <ol className="backlog-list" ref={setList} style={fit.style}>
           {slots.map((r, i) => (
             <li key={r.entry.id}>
               <button className={selectedId === r.entry.id ? 'selected' : ''} onClick={() => select(r.entry.id)}>
@@ -114,13 +112,30 @@ function BacklogPanel({ type, rows, loading }: { type: MediaType; rows: LibraryR
           ))}
         </ol>
       )}
-      {!loading && backlog > SLOTS && (
-        <a className="more-line" href={`#/${SLUG[type]}`}>
-          + {backlog - SLOTS} more in the backlog
-        </a>
-      )}
     </div>
   );
+}
+
+/**
+ * How many backlog rows fit in `list` without squashing them. The stylesheet sets `--fit-row-min`
+ * on the list only while the home view must fill exactly one screen; there the list's height comes
+ * from the layout, not its rows, so showing fewer rows can't feed back into the measurement.
+ * Everywhere else all `max` rows show and the page scrolls.
+ */
+function useFitRows(list: HTMLOListElement | null, max: number) {
+  const [rows, setRows] = useState(max);
+  useLayoutEffect(() => {
+    if (!list) return;
+    const measure = () => {
+      const rowMin = parseFloat(getComputedStyle(list).getPropertyValue('--fit-row-min'));
+      setRows(fitRowCount(list.clientHeight, rowMin, max));
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(list);
+    return () => ro.disconnect();
+  }, [list, max]);
+  return { rows, style: { '--rows': rows } as CSSProperties };
 }
 
 function metaLine(r: LibraryRow): string {

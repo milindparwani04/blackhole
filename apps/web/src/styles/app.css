@@ -75,11 +75,15 @@ h1, h2, h3 { margin: 0; font-weight: 500; }
   height: calc(100vh / var(--gui-scale, 1));
 }
 .shell.with-inspector { grid-template-columns: 220px minmax(0, 1fr) 400px; grid-template-areas: 'top top top' 'side main insp'; }
-/* Brand and clock take equal side columns so the search sits in the exact centre. */
-.topbar { grid-area: top; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 720px) minmax(0, 1fr); align-items: center; gap: 32px; padding: 0 20px; border-bottom: 1px solid var(--line); }
+/* Brand and clock take equal side columns so the search sits in the exact centre. The side columns
+   never shrink below their content: when space runs out the search narrows instead of the brand
+   sliding underneath it. */
+.topbar { grid-area: top; display: grid; grid-template-columns: minmax(max-content, 1fr) minmax(0, 720px) minmax(max-content, 1fr); align-items: center; gap: 32px; padding: 0 20px; border-bottom: 1px solid var(--line); }
 .topbar .brand { justify-self: start; }
 .sidebar { grid-area: side; border-right: 1px solid var(--line); padding: 20px 0; overflow-y: auto; display: flex; flex-direction: column; }
-.main { grid-area: main; overflow-y: auto; padding: 20px 24px; display: flex; flex-direction: column; gap: 20px; outline: none; }
+/* `main` is a size container: views adapt to the space they actually get (which the inspector
+   narrows and the GUI zoom shrinks), something viewport media queries can't see. */
+.main { grid-area: main; overflow-y: auto; padding: 20px 24px; display: flex; flex-direction: column; gap: 20px; outline: none; container: main / inline-size; }
 .inspector { grid-area: insp; overflow-y: auto; border-radius: 0; border-width: 0 0 0 1px; }
 
 /* ---------- topbar ---------- */
@@ -192,9 +196,15 @@ code { font-family: var(--font); color: var(--accent-2); }
 /* ---------- dashboard ---------- */
 .dashboard { display: flex; flex-direction: column; gap: 24px; }
 .stat-cards { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 20px; }
-.stat-card { display: flex; align-items: center; gap: 18px; text-decoration: none; color: inherit; }
+.stat-card { display: flex; align-items: center; gap: 18px; text-decoration: none; color: inherit; container-type: inline-size; }
 .stat-card:hover { border-color: var(--line-2); }
-.stat-card > div:nth-child(2) { flex: 1; }
+.stat-card > div:nth-child(2) { flex: 1; min-width: 0; }
+.stat-card .eyebrow, .ring-label { white-space: nowrap; }
+/* Narrow cards drop the type icon (the label says the same) rather than wrapping "IN THE PIT". */
+/* (A container can only style its children, so the card hides its icon, not its own gap.) */
+@container (max-width: 250px) {
+  .stat-card > svg { display: none; }
+}
 .stat-num { font-size: 26px; line-height: 1.2; }
 .ring { display: flex; flex-direction: column; align-items: center; gap: 2px; }
 .ring-track { fill: none; stroke: var(--line-2); stroke-width: 3; }
@@ -204,17 +214,6 @@ code { font-family: var(--font); color: var(--accent-2); }
 .hero-empty { text-align: center; padding: 48px 16px; display: flex; flex-direction: column; align-items: center; gap: 12px; }
 .hero-empty h1 { font-size: 22px; letter-spacing: 0.2em; }
 .hero-empty p { max-width: 520px; }
-.shelf { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 4px; }
-.shelf-card { background: var(--panel-2); border: 1px solid var(--line); border-radius: var(--radius); padding: 10px; display: flex; flex-direction: column; gap: 6px; width: 150px; flex-shrink: 0; text-align: left; }
-.shelf-card:hover { border-color: var(--accent); }
-.shelf-title { font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.mini-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
-.mini-list { list-style: none; padding: 0; margin: 0; }
-.mini-list button { display: flex; align-items: center; gap: 12px; width: 100%; background: none; border: 0; border-top: 1px solid var(--line); padding: 8px 4px; text-align: left; }
-.mini-list button:hover { background: var(--panel-2); }
-.mini-list .idx { color: var(--muted); width: 14px; }
-.mini-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-.mini-text .title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .my-rating { color: var(--accent-2); white-space: nowrap; }
 
 /* ---------- library table ---------- */
@@ -353,13 +352,20 @@ details[open] > summary::before { content: '– '; }
 .toast.error { border-color: var(--bad); }
 @keyframes rise { from { transform: translateY(8px); opacity: 0; } }
 
-/* ---------- responsive ---------- */
-@media (max-width: 1280px) {
+/* ---------- responsive ----------
+   Media queries see the window in device px, before the fixed GUI zoom (settings.ts, 1.25).
+   Each breakpoint is the layout width × 1.25: 1600 = 1280, 1200 = 960, 700 = 560 layout px.
+   Anything that depends on the space a view really gets uses @container main instead. */
+@container main (max-width: 720px) {
   .stat-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .mini-grid { grid-template-columns: 1fr; }
+}
+@container main (max-width: 440px) {
+  .stat-cards { grid-template-columns: 1fr; }
+}
+@media (max-width: 1600px) {
   .shell.with-inspector { grid-template-columns: 200px minmax(0, 1fr) 360px; }
 }
-@media (max-width: 960px) {
+@media (max-width: 1200px) {
   .shell, .shell.with-inspector { grid-template-columns: 1fr; grid-template-rows: auto auto 1fr; grid-template-areas: 'top' 'side' 'main'; height: auto; min-height: calc(100vh / var(--gui-scale, 1)); }
   .topbar { display: flex; flex-wrap: wrap; padding: 12px 16px; gap: 12px; }
   .topbar-meta { display: none; }
@@ -369,12 +375,11 @@ details[open] > summary::before { content: '– '; }
   .nav-label { display: none; }
   .nav-item { white-space: nowrap; border-left: 0; border-bottom: 2px solid transparent; }
   .nav-item.active { border-bottom-color: var(--accent); }
-  .main { padding: 12px 16px; overflow: visible; }
+  .main, .main.fit { padding: 12px 16px; overflow: visible; }
   .inspector { position: fixed; inset: 0; z-index: 40; border-width: 0; }
   .heatmap-body { grid-template-columns: 1fr; overflow-y: auto; }
 }
-@media (max-width: 560px) {
-  .stat-cards { grid-template-columns: 1fr; }
+@media (max-width: 700px) {
   .grid2 { grid-template-columns: 1fr; }
 }
 .block textarea, .block .input { width: 100%; }
@@ -411,35 +416,53 @@ details[open] > summary::before { content: '– '; }
 .pick-chip { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--accent); border-radius: 3px; padding: 2px 4px 2px 8px; font-size: 11.5px; color: var(--accent-2); }
 .pick-chip.error { border-color: var(--bad); color: var(--bad); }
 .pick-chip button { background: none; border: 0; color: inherit; padding: 0 4px; font-size: 14px; line-height: 1; }
-/* home: four backlog panels, 5 slots each, fits one screen */
-.backlog-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px 20px; }
-.backlog-panel { display: flex; flex-direction: column; min-width: 0; }
-.backlog-panel .panel-head { margin-bottom: 8px; }
+/* home: four backlog panels, up to 5 slots each */
+.backlog-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 24px 20px; }
+.backlog-panel { display: flex; flex-direction: column; min-width: 0; container-type: inline-size; }
+/* Icon | title | actions on one line, the counts underneath: every panel's header is the same
+   height whatever its counts say, so the four lists line up. */
+.bl-head { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; grid-template-areas: 'icon title actions' 'icon meta meta'; align-items: center; column-gap: 10px; margin-bottom: 8px; }
+.bl-head > svg { grid-area: icon; }
+.bl-title { grid-area: title; }
+.bl-actions { grid-area: actions; }
+.bl-meta { grid-area: meta; display: block; }
+.bl-title, .bl-meta { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .backlog-list { list-style: none; padding: 0; margin: 0; }
 .backlog-list button { display: flex; align-items: center; gap: 12px; width: 100%; background: none; border: 0; border-top: 1px solid var(--line); padding: 7px 4px; text-align: left; }
 .backlog-list button:hover { background: var(--panel-2); }
 .backlog-list button.selected { background: var(--accent-soft); }
 .backlog-list .idx { color: var(--muted); width: 18px; font-size: 11px; }
 .bl-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-.bl-text .title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bl-text > * { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .bl-side { flex-shrink: 0; text-align: right; }
+/* Narrow panels drop the difficulty bar so the title keeps room; the inspector still shows it. */
+@container (max-width: 560px) { .bl-game .diff { display: none; } }
 .bl-game { display: inline-flex; align-items: center; gap: 12px; font-size: 12px; }
 .bl-game .diff-num { display: none; }
-.more-line { margin-top: auto; padding-top: 8px; font-size: 11px; color: var(--muted); text-decoration: none; letter-spacing: 0.05em; }
-.more-line:hover { color: var(--accent-2); }
-@media (max-width: 1280px) { .backlog-grid { grid-template-columns: 1fr; } }
-/* Wide windows: the home view is exactly one screen, never scrolls; spare height is shared
-   evenly between the backlog rows so the gaps above and below match. */
-@media (min-width: 1281px) {
-  .main.fit { overflow: hidden; }
-  .main.fit .dashboard { flex: 1; min-height: 0; }
+/* The home view scrolls inside .dashboard, never the page; at fit size (below) it has nothing to scroll. */
+.main.fit { overflow: hidden; }
+.main.fit .dashboard { flex: 1; min-height: 0; overflow-y: auto; }
+/* Fit size: when main is wide enough for the 2×2 grid, the home view is exactly one screen.
+   Spare height is shared evenly between the rows, and a panel shows only as many rows as fit
+   at --fit-row-min each (Dashboard.tsx reads it and sets --rows), so short windows show fewer
+   rows instead of squashing them on top of each other. Not in the stacked small-window shell
+   (max-width: 1200px below), where the page has no fixed height to fit. */
+@container main (min-width: 760px) {
+  .backlog-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (min-width: 1201px) { @container main (min-width: 760px) {
+  .main.fit .dashboard { overflow: hidden; }
   .main.fit .backlog-grid { flex: 1; min-height: 0; grid-template-rows: repeat(2, minmax(0, 1fr)); }
   .main.fit .backlog-panel { min-height: 0; overflow: hidden; }
-  .main.fit .backlog-list { flex: 1; min-height: 0; display: grid; grid-template-rows: repeat(5, minmax(0, 1fr)); }
-  .main.fit .backlog-list li { display: flex; min-height: 0; }
-  .main.fit .backlog-list button { flex: 1; }
-  .main.fit .more-line { margin-top: 0; }
-}
+  .main.fit .dashboard, .main.fit .backlog-grid { gap: 20px; }
+  .main.fit .stat-card { padding-block: 12px; }
+  .main.fit .bl-text { line-height: 1.35; }
+  /* Two text lines (13px + 11.5px at 1.35 ≈ 33px) + 2px padding each side + the 1px divider. */
+  .main.fit .backlog-list { --fit-row-min: 39px; flex: 1; min-height: 0; display: grid; grid-template-rows: repeat(var(--rows, 5), minmax(0, 1fr)); align-content: start; }
+  .main.fit .backlog-list li { display: flex; min-height: 0; overflow: hidden; }
+  .main.fit .backlog-list button { flex: 1; min-height: 0; padding-block: 2px; }
+  .main.fit .backlog-list .cover.sm { width: auto; max-height: 100%; aspect-ratio: 34 / 46; }
+} }
 /* Segmented controls that should hug their buttons instead of stretching across a flex column. */
 .seg.fit { align-self: flex-start; max-width: 100%; }
 
