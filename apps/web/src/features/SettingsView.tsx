@@ -1,4 +1,4 @@
-import { GUI_SCALES, setSettings, useSettings } from '../settings';
+import { setSettings, useSettings } from '../settings';
 
 export function SettingsView() {
   const s = useSettings();
@@ -11,20 +11,6 @@ export function SettingsView() {
         <p className="muted sm">Display preferences are saved in this browser and never change your library.</p>
 
         <div className="settings-list">
-          <div className="setting">
-            <div>
-              <h2 className="h-section">GUI SCALE</h2>
-              <div className="muted sm">Size of every element on screen. Browser zoom is turned off, so this is the only zoom.</div>
-            </div>
-            <div className="seg" role="radiogroup" aria-label="GUI scale">
-              {GUI_SCALES.map((v) => (
-                <button key={v} role="radio" aria-checked={s.guiScale === v} className={s.guiScale === v ? 'on' : ''} onClick={() => setSettings({ guiScale: v })}>
-                  {Math.round(v * 100)}%
-                </button>
-              ))}
-            </div>
-          </div>
-
           <div className="setting">
             <div>
               <h2 className="h-section">REVIEWS</h2>
