@@ -21,8 +21,9 @@ const FALLBACK = "'Cascadia Mono', Consolas, ui-monospace, monospace";
 // adjust: font-size-adjust for faces whose letters run small at the app's px sizes.
 export const FONTS = [
   { id: 'jetbrains', name: 'JetBrains Mono', stack: `'JetBrains Mono', ${FALLBACK}` },
-  // milindparwani.com: Pixelify Sans, with PixC supplying its C/c.
-  { id: 'pixelify', name: 'Pixelify (site)', stack: `'PixC', 'Pixelify Sans', ${FALLBACK}`, adjust: 'ex-height 0.5' },
+  // milindparwani.com: Pixelify Sans, with PixC supplying its C/c. No adjust: font-size-adjust
+  // scales each face by its own metrics, which blew the PixC C up past the Pixelify letters.
+  { id: 'pixelify', name: 'Pixelify (site)', stack: `'PixC', 'Pixelify Sans', ${FALLBACK}` },
   { id: 'plex', name: 'IBM Plex Mono', stack: `'IBM Plex Mono', ${FALLBACK}` },
   { id: 'geist', name: 'Geist Mono', stack: `'Geist Mono', ${FALLBACK}` },
   { id: 'spacemono', name: 'Space Mono', stack: `'Space Mono', ${FALLBACK}` },
