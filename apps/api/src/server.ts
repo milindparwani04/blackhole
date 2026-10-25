@@ -29,8 +29,8 @@ export function buildServer(o: ServerOptions): FastifyInstance {
     genReqId: () => crypto.randomUUID(),
   });
 
-  const hostnames = new Set([`127.0.0.1:${o.port}`, `localhost:${o.port}`, ...(o.extraOrigins ?? []).map((u) => new URL(u).host)]);
-  const origins = new Set([`http://127.0.0.1:${o.port}`, `http://localhost:${o.port}`, ...(o.extraOrigins ?? [])]);
+  const hostnames = new Set([`127.0.0.1:${o.port}`, `localhost:${o.port}`, `[::1]:${o.port}`, ...(o.extraOrigins ?? []).map((u) => new URL(u).host)]);
+  const origins = new Set([`http://127.0.0.1:${o.port}`, `http://localhost:${o.port}`, `http://[::1]:${o.port}`, ...(o.extraOrigins ?? [])]);
 
   // Loopback hardening: Host allowlist defeats DNS rebinding; Origin + custom header defeat CSRF from hostile sites.
   app.addHook('onRequest', async (req, reply) => {
@@ -65,7 +65,7 @@ export function buildServer(o: ServerOptions): FastifyInstance {
       return reply.code(e.statusCode).send({ error: { code: 'VALIDATION_ERROR', message: e.message ?? 'Bad request', requestId: req.id } });
     }
     req.log.error(err);
-    return reply.code(500).send({ error: { code: 'SOURCE_UNAVAILABLE', message: 'Unexpected server error', requestId: req.id } });
+    return reply.code(500).send({ error: { code: 'INTERNAL_ERROR', message: 'Unexpected server error', requestId: req.id } });
   });
 
   registerRoutes(app, o.db, { dataDir: o.dataDir, version: VERSION });
