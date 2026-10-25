@@ -60,8 +60,12 @@ export function Inspector({ id }: { id: string }) {
   if (err) {
     return (
       <aside className="inspector panel" aria-label="Details">
-        <InspectorHead onClose={() => select(null)} />
-        <Empty>{err}</Empty>
+        <div className="insp-hero">
+          <div className="insp-hero-text">
+            <Empty>{err}</Empty>
+          </div>
+          <CloseButton onClose={() => select(null)} />
+        </div>
       </aside>
     );
   }
@@ -70,11 +74,10 @@ export function Inspector({ id }: { id: string }) {
   const { media, entry } = d;
   return (
     <aside className="inspector panel" aria-label={`${media.title} details`}>
-      <InspectorHead onClose={() => select(null)} />
       <div className="insp-body">
         <div className="insp-hero">
           <Cover media={media} size="lg" />
-          <div>
+          <div className="insp-hero-text">
             <div className="eyebrow">
               <span className="dot on" aria-hidden="true" /> {TYPE_LABEL[media.type].one.toUpperCase()}
               {entry.archived_at && <span className="pill warn">ARCHIVED</span>}
@@ -91,6 +94,7 @@ export function Inspector({ id }: { id: string }) {
               </div>
             )}
           </div>
+          <CloseButton onClose={() => select(null)} />
         </div>
         {media.synopsis && <p className="synopsis">{media.synopsis}</p>}
         <SourceLine label="Metadata" source={media.metadata_source} url={media.source_url} checked={media.checked_at} />
@@ -157,13 +161,11 @@ export function Inspector({ id }: { id: string }) {
 
 type Act = (fn: () => Promise<MutationResult>, message?: string) => Promise<MutationResult | null>;
 
-function InspectorHead({ onClose }: { onClose: () => void }) {
+function CloseButton({ onClose }: { onClose: () => void }) {
   return (
-    <div className="insp-head">
-      <button className="icon-btn" onClick={onClose} aria-label="Close details">
-        <CloseIcon />
-      </button>
-    </div>
+    <button className="icon-btn insp-close" onClick={onClose} aria-label="Close details">
+      <CloseIcon />
+    </button>
   );
 }
 

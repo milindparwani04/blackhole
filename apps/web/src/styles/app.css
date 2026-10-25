@@ -246,9 +246,10 @@ code { font-family: var(--font); color: var(--accent-2); }
 .progress-bar i { display: block; height: 100%; background: var(--accent); }
 
 /* ---------- inspector ---------- */
-.insp-head { display: flex; justify-content: flex-end; align-items: center; padding-bottom: 12px; border-bottom: 1px solid var(--line); margin-bottom: 14px; position: sticky; top: -16px; background: var(--panel); z-index: 2; padding-top: 4px; }
 .insp-body { display: flex; flex-direction: column; gap: 4px; }
 .insp-hero { display: flex; gap: 16px; }
+.insp-hero-text { flex: 1; min-width: 0; }
+.insp-close { flex-shrink: 0; align-self: flex-start; }
 .insp-title { font-size: 18px; letter-spacing: 0.08em; margin: 6px 0 4px; word-break: break-word; }
 .synopsis { color: var(--text-3); font-size: 12px; margin: 12px 0 0; }
 .insp-section { border-top: 1px solid var(--line); padding: 12px 0; margin-top: 8px; display: flex; flex-direction: column; gap: 8px; }
