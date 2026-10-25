@@ -1,0 +1,24 @@
+# Owner decisions (BRD §11) — resolved 25/10/2026
+
+| ID | Decision | Implementation |
+|---|---|---|
+| D-01 | **This PC only.** Personal, non-commercial. | Server refuses non-loopback hosts; SearXNG must also be a loopback URL. No auth needed. |
+| D-02 | **SearXNG** for trophy lookup. | Local Docker container `blackhole-searxng` on 127.0.0.1:8888 (`searxng/settings.yml`, JSON on, limiter off). Two queries per lookup, serialised ≥2.5 s apart. Only snippets from PowerPyx, PSNProfiles (`/guide/`), PlayStationTrophies (`/game/*/guide/`) and Knoef are parsed; only labelled values are accepted. One guide is used as-is, never averaged. Guide pages are **not** fetched. Throttled engines are reported as errors, never bypassed. |
+| D-03 | **TVmaze** episode ratings. | As built; attributed CC BY-SA 4.0. |
+| D-04 | **Auto-complete** when every aired episode is watched; **back into the Pit** (In progress) when new episodes air. | Applied in the same event as the watch action (one undo reverts both). Hourly job re-syncs TVmaze lists older than 20 h and reopens completed shows with new aired, unwatched episodes. Dropped shows are left alone. |
+| D-05 | Track trophies **only for the version being played**. PS5 ~90% of the time, PS4 for older games. Choose version before the lookup runs. | `library_entries.play_platform`; Add dialog asks for the version (PS5 preselected, then PS4). Inspector "Playing on" switch looks up the new version. Regions not tracked (stack region = `ALL`). Existing games backfilled PS5 > PS4 > first. |
+| D-06 | **No Letterboxd import.** | Out of scope. |
+| D-07 | **IGDB "normally"** time. | Stored as Normal (half-hour precision, player count in source). Never overwrites a manual value. Hastily/completely not imported. |
+| D-08 | Theme approved; remove "Your media universe" and the sidebar tagline. | Done. |
+
+## Known limitations
+- Search summaries often lack numbers (≈ 9–10 of 12 test games got at least one value in a 2026-10-25 probe; Sekiro got none). The fallback is the guide link plus manual entry.
+- Upstream engines throttle bursts (Brave/Google suspend ~3 min; DuckDuckGo CAPTCHA). Normal use (2 searches per game added) stays well below that.
+- A guide titled exactly like a different release of the same name (e.g. a remaster with an identical title and no year tag) cannot be told apart from the snippet alone. Values always show their source link and excerpt.
+- SearXNG engines (2026-10-25): defaults Brave, DuckDuckGo, Google CSE plus enabled Bing, Google, Qwant, Yahoo. Startpage and Mojeek deliberately left off (proof-of-work anti-bot). At enablement time Bing and Yahoo answered; Google and Qwant returned "access denied" to automated requests, Brave/DDG were still cooling down after the burst.
+
+## Amendment 25/10/2026 — owner approved reading the matched guide page
+- When no search summary gives both hours and difficulty, Blackhole reads up to 2 matched guide pages (PowerPyx first), extracting only the roadmap box (cut before comments). If search didn't surface PowerPyx, it tries PowerPyx's fixed guide URL pattern.
+- Every page read: allowlisted guide host only, robots.txt honoured (cached 24 h), honest User-Agent `Blackhole/0.1`, 2 MB / 12 s caps, spaced through a queue. The page's own `<h1>` must name the game, and a guide published before the game's release year is rejected (older version).
+- Bot checks are never bypassed: PlayStationTrophies and PSNProfiles currently answer automated requests with a Cloudflare challenge (HTTP 403), so those hosts are skipped for 24 h and the guide link is the fallback. PSNProfiles' robots.txt blocks AI training crawlers by name; Blackhole is not one and falls under `User-agent: *` (allowed).
+- SearXNG's Bing engine mangles `site:` queries; PowerPyx is reached via the URL pattern instead.

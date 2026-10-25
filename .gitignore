@@ -1,0 +1,9 @@
+node_modules/
+data/
+data-test/
+apps/web/dist/
+.env
+*.log
+data-staging/
+searxng/settings.yml
+searxng/*.uwsgi

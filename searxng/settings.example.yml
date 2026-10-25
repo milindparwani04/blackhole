@@ -1,0 +1,26 @@
+# Local SearXNG for Blackhole trophy lookups (D-02). Copy to settings.yml and set a random secret_key.
+use_default_settings: true
+general:
+  instance_name: "Blackhole local search"
+server:
+  secret_key: "CHANGE_ME"
+  limiter: false        # only reachable from this PC (bound to 127.0.0.1)
+  image_proxy: false
+  public_instance: false
+search:
+  safe_search: 0
+  formats:
+    - html
+    - json             # Blackhole reads results as JSON
+
+# More general web engines so one throttled engine doesn't stop trophy lookups.
+# Startpage and Mojeek are deliberately left off: they use anti-bot proof-of-work challenges.
+engines:
+  - name: bing
+    disabled: false
+  - name: google
+    disabled: false
+  - name: qwant
+    disabled: false
+  - name: yahoo
+    disabled: false
