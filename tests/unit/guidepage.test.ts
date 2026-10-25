@@ -141,7 +141,12 @@ describe('lookup reads the matched page when the summary has no numbers', () => 
       const u = new URL(String(url));
       if (u.port === '9') return json({ results: [] });
       if (u.pathname === '/robots.txt') return new Response('User-agent: *\nAllow: /\n');
-      return html(PAGE.replace('Red Dead Redemption 2 Trophy Guide &amp; Roadmap', 'Resident Evil 4 Trophy Guide &amp; Roadmap').replace('March 2, 2022', 'August 30, 2016'));
+      return html(
+        PAGE.replace('Red Dead Redemption 2 Trophy Guide &amp; Roadmap', 'Resident Evil 4 Trophy Guide &amp; Roadmap').replace(
+          'March 2, 2022',
+          'August 30, 2016',
+        ),
+      );
     });
     const a = await call('POST', '/api/library', { type: 'GAME', title: 'Resident Evil 4', year: 2023, platforms: ['PS5'] });
     const d = await settled(a.detail.entry.id);
@@ -153,7 +158,8 @@ describe('lookup reads the matched page when the summary has no numbers', () => 
     const pageHits: string[] = [];
     vi.stubGlobal('fetch', async (url: URL | string) => {
       const u = new URL(String(url));
-      if (u.port === '9') return json({ results: [SNIPPET_ONLY, { ...SNIPPET_ONLY, url: 'https://evil.example/red-dead-redemption-2-trophy-guide-roadmap/' }] });
+      if (u.port === '9')
+        return json({ results: [SNIPPET_ONLY, { ...SNIPPET_ONLY, url: 'https://evil.example/red-dead-redemption-2-trophy-guide-roadmap/' }] });
       if (u.pathname === '/robots.txt') return new Response('User-agent: *\nDisallow: /\n');
       pageHits.push(u.toString());
       return html(PAGE);

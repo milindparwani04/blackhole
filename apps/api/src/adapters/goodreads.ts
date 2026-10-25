@@ -29,17 +29,17 @@ export function parseCsv(text: string): string[][] {
   for (let i = 0; i < s.length; i++) {
     const c = s[i];
     if (quoted) {
-      if (c === '"' && s[i + 1] === '"') (field += '"'), i++;
+      if (c === '"' && s[i + 1] === '"') ((field += '"'), i++);
       else if (c === '"') quoted = false;
       else field += c;
     } else if (c === '"') quoted = true;
-    else if (c === ',') row.push(field), (field = '');
+    else if (c === ',') (row.push(field), (field = ''));
     else if (c === '\n' || c === '\r') {
       if (c === '\r' && s[i + 1] === '\n') i++;
-      row.push(field), rows.push(row), (row = []), (field = '');
+      (row.push(field), rows.push(row), (row = []), (field = ''));
     } else field += c;
   }
-  if (field || row.length) row.push(field), rows.push(row);
+  if (field || row.length) (row.push(field), rows.push(row));
   return rows.filter((r) => r.some((f) => f.trim()));
 }
 
@@ -61,7 +61,8 @@ export function parseGoodreadsCsv(text: string): GoodreadsBook[] {
   const [head, ...rows] = parseCsv(text);
   const col = (name: string) => head?.indexOf(name) ?? -1;
   const need = ['Book Id', 'Title', 'Author', 'Exclusive Shelf'];
-  if (!head || need.some((n) => col(n) < 0)) throw new AppError('VALIDATION_ERROR', 'That is not a Goodreads library export (expected the CSV from My Books → Import and export → Export Library)');
+  if (!head || need.some((n) => col(n) < 0))
+    throw new AppError('VALIDATION_ERROR', 'That is not a Goodreads library export (expected the CSV from My Books → Import and export → Export Library)');
   const at = (r: string[], name: string) => (col(name) >= 0 ? r[col(name)]?.trim() : undefined);
   return rows
     .filter((r) => /^\d+$/.test(at(r, 'Book Id') ?? '') && at(r, 'Title'))

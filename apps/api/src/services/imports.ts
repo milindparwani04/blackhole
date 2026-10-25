@@ -59,7 +59,10 @@ export function pickMatch(film: { title: string; year: number | null }, results:
 }
 
 const sameAuthor = (author: string | null, creator: string | null) => {
-  const surname = normTitle(author ?? '').split(' ').pop() ?? '';
+  const surname =
+    normTitle(author ?? '')
+      .split(' ')
+      .pop() ?? '';
   return !surname || normTitle(creator ?? '').includes(surname);
 };
 
@@ -120,7 +123,9 @@ export function startLetterboxdPreview(db: DB, user: string): ImportJob {
 
 /** Letterboxd's data export: ZIP (base64) or the loose CSVs. Full history, star ratings and diary watch dates. */
 export function startLetterboxdExportPreview(db: DB, input: { zip?: string; files?: Record<string, string> }): ImportJob {
-  const files = input.zip ? unzipText(Buffer.from(input.zip, 'base64'), (n) => /\.csv$/i.test(n) && !n.includes('/deleted/')) : new Map(Object.entries(input.files ?? {}));
+  const files = input.zip
+    ? unzipText(Buffer.from(input.zip, 'base64'), (n) => /\.csv$/i.test(n) && !n.includes('/deleted/'))
+    : new Map(Object.entries(input.files ?? {}));
   const films = parseLetterboxdExport(files);
   return startJob('PREVIEW', (job) => matchFilms(db, job, films));
 }
@@ -245,7 +250,11 @@ export function startImport(db: DB, dataDir: string, items: ImportItem[]): Impor
           genres: m?.genres ?? [],
           creator: it.creator,
           metadata_source: m?.provider ?? it.source,
-          source_url: m ? (m.provider === 'TMDB' ? `https://www.themoviedb.org/movie/${m.external_id}` : `https://openlibrary.org${m.external_id}`) : it.source_url,
+          source_url: m
+            ? m.provider === 'TMDB'
+              ? `https://www.themoviedb.org/movie/${m.external_id}`
+              : `https://openlibrary.org${m.external_id}`
+            : it.source_url,
           external: m ? { provider: m.provider, object_type: it.type, external_id: m.external_id } : null,
           pages: it.pages,
           pages_source: it.pages ? 'Goodreads export (your edition)' : null,
@@ -270,12 +279,16 @@ export function startImport(db: DB, dataDir: string, items: ImportItem[]): Impor
           const mediaId = get<{ media_id: string }>(db, 'SELECT media_id FROM library_entries WHERE id = :id', { id: entryId })!.media_id;
           try {
             const d = await movieDetail(m.external_id);
-            run(db, `UPDATE media_items SET runtime_min = :runtime, creator = COALESCE(creator, :director), genres = CASE WHEN :genres = '[]' THEN genres ELSE :genres END WHERE id = :id`, {
-              runtime: d.runtime_min,
-              director: d.director,
-              genres: JSON.stringify(d.genres),
-              id: mediaId,
-            });
+            run(
+              db,
+              `UPDATE media_items SET runtime_min = :runtime, creator = COALESCE(creator, :director), genres = CASE WHEN :genres = '[]' THEN genres ELSE :genres END WHERE id = :id`,
+              {
+                runtime: d.runtime_min,
+                director: d.director,
+                genres: JSON.stringify(d.genres),
+                id: mediaId,
+              },
+            );
             if (storeImdbId(db, mediaId, 'MOVIE', d.imdb_id)) imdbLinked.push(mediaId);
           } catch {
             // Runtime/director/IMDb link fill in later from the hourly maintenance; the entry is already saved.

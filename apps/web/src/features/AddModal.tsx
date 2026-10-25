@@ -51,15 +51,20 @@ export function AddModal({ initialType, initialQuery, onClose }: { initialType: 
     return () => (removeEventListener('keydown', onKey), prev?.focus());
   }, [onClose, progress]);
 
+  // Each search gets a number; only the latest one may show its results (switching type mid-search
+  // must not let the old type's results land late).
+  const searchSeq = useRef(0);
   async function search(t = type, query = q) {
     if (query.trim().length < 2) return;
+    const seq = ++searchSeq.current;
     setLoading(true);
     try {
-      setRes(await api.search(t, query.trim()));
+      const r = await api.search(t, query.trim());
+      if (seq === searchSeq.current) setRes(r);
     } catch (e) {
-      setRes({ provider: null, provider_status: 'ERROR', message: (e as ApiError).message, attribution: null, results: [] });
+      if (seq === searchSeq.current) setRes({ provider: null, provider_status: 'ERROR', message: (e as ApiError).message, attribution: null, results: [] });
     } finally {
-      setLoading(false);
+      if (seq === searchSeq.current) setLoading(false);
     }
   }
 
@@ -197,7 +202,13 @@ export function AddModal({ initialType, initialQuery, onClose }: { initialType: 
         >
           <label className="search-box grow">
             <SearchIcon />
-            <input ref={qInput} value={q} onChange={(e) => setQ(e.target.value)} placeholder={`Search ${TYPE_LABEL[type].many.toLowerCase()}…`} aria-label="Search providers" />
+            <input
+              ref={qInput}
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder={`Search ${TYPE_LABEL[type].many.toLowerCase()}…`}
+              aria-label="Search providers"
+            />
           </label>
           <button className="btn primary" disabled={loading || q.trim().length < 2}>
             {loading ? 'Searching…' : 'Search'}
@@ -240,7 +251,11 @@ export function AddModal({ initialType, initialQuery, onClose }: { initialType: 
                         <span className="title">
                           {r.title} {r.year && <span className="muted">({r.year})</span>}
                         </span>
-                        <span className="muted sm">{[r.creator, r.extra && r.extra !== r.creator ? r.extra : null, r.genres.slice(0, 2).join(', '), r.pages ? `~${r.pages} pages` : null].filter(Boolean).join(' · ')}</span>
+                        <span className="muted sm">
+                          {[r.creator, r.extra && r.extra !== r.creator ? r.extra : null, r.genres.slice(0, 2).join(', '), r.pages ? `~${r.pages} pages` : null]
+                            .filter(Boolean)
+                            .join(' · ')}
+                        </span>
                         {r.synopsis && <span className="sm clamp">{r.synopsis}</span>}
                         {pick && showReviews && previews.has(k) && (
                           <span className="rating-preview sm">
@@ -323,7 +338,17 @@ export function sortForPlay(platforms: string[]) {
 }
 
 /** D-05: which version a ticked game will be played on; trophy lookups follow it. */
-function PlatformPicker({ platforms, value, onChange, disabled }: { platforms: string[]; value: string | null; onChange: (p: string) => void; disabled: boolean }) {
+function PlatformPicker({
+  platforms,
+  value,
+  onChange,
+  disabled,
+}: {
+  platforms: string[];
+  value: string | null;
+  onChange: (p: string) => void;
+  disabled: boolean;
+}) {
   return (
     <div className="chooser" role="radiogroup" aria-label="Which version will you play?">
       <span className="lbl">Playing on</span>
@@ -345,7 +370,11 @@ function ManualForm({ type, initialTitle, busy, onSubmit }: { type: MediaType; i
   const [otherPlatform, setOtherPlatform] = useState('');
   useEffect(() => setF((x) => ({ ...x, title: initialTitle })), [initialTitle]);
   const set = (k: keyof typeof f) => (e: { target: { value: string } }) => setF({ ...f, [k]: e.target.value });
-  const list = (s: string) => s.split(',').map((x) => x.trim()).filter(Boolean);
+  const list = (s: string) =>
+    s
+      .split(',')
+      .map((x) => x.trim())
+      .filter(Boolean);
   const creatorLabel = type === 'BOOK' ? 'Author' : type === 'GAME' ? 'Developer' : type === 'TV' ? 'Network' : 'Director';
   const allPlatforms = sortForPlay([...platforms, ...list(otherPlatform)]);
   const [playOn, setPlayOn] = useState('');
@@ -397,11 +426,21 @@ function ManualForm({ type, initialTitle, busy, onSubmit }: { type: MediaType; i
             <div className="row gap wrap">
               {PLATFORM_CHIPS.map((p) => (
                 <label key={p} className={`chip-toggle ${platforms.includes(p) ? 'on' : ''}`}>
-                  <input type="checkbox" checked={platforms.includes(p)} onChange={(e) => setPlatforms(e.target.checked ? [...platforms, p] : platforms.filter((x) => x !== p))} />
+                  <input
+                    type="checkbox"
+                    checked={platforms.includes(p)}
+                    onChange={(e) => setPlatforms(e.target.checked ? [...platforms, p] : platforms.filter((x) => x !== p))}
+                  />
                   {p}
                 </label>
               ))}
-              <input className="input" value={otherPlatform} onChange={(e) => setOtherPlatform(e.target.value)} placeholder="Other, comma separated" aria-label="Other platforms" />
+              <input
+                className="input"
+                value={otherPlatform}
+                onChange={(e) => setOtherPlatform(e.target.value)}
+                placeholder="Other, comma separated"
+                aria-label="Other platforms"
+              />
             </div>
           </fieldset>
         )}

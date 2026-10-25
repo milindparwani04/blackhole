@@ -23,7 +23,12 @@ export function Ring({ value, label }: { value: number; label: string }) {
 
 /** 10-segment difficulty bar; a range fills solid to min and striped to max. */
 export function DifficultyBar({ min, max }: { min: number | null; max: number | null }) {
-  if (min == null && max == null) return <span className="muted" title="Unknown">—</span>;
+  if (min == null && max == null)
+    return (
+      <span className="muted" title="Unknown">
+        —
+      </span>
+    );
   const lo = min ?? max!;
   const hi = max ?? min!;
   return (
@@ -47,7 +52,11 @@ export function Cover({ media, size = 'sm' }: { media: Pick<MediaItem, 'cover_ur
   // Deterministic placeholder: hue from the title so rows stay distinguishable.
   const hue = [...media.title].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) % 360, 7);
   return (
-    <span className={`cover placeholder ${size}`} style={{ background: `linear-gradient(160deg, hsl(${hue} 30% 22%), hsl(${(hue + 40) % 360} 25% 8%))` }} aria-hidden="true">
+    <span
+      className={`cover placeholder ${size}`}
+      style={{ background: `linear-gradient(160deg, hsl(${hue} 30% 22%), hsl(${(hue + 40) % 360} 25% 8%))` }}
+      aria-hidden="true"
+    >
       <TypeIcon type={media.type} size={size === 'lg' ? 40 : 16} />
     </span>
   );
@@ -58,7 +67,19 @@ export function StatusPill({ status }: { status: Status }) {
 }
 
 /** Two-step inline confirmation instead of a blocking browser dialog. */
-export function ConfirmButton({ children, confirm, onConfirm, className = 'btn ghost sm', disabled }: { children: ReactNode; confirm: string; onConfirm: () => void; className?: string; disabled?: boolean }) {
+export function ConfirmButton({
+  children,
+  confirm,
+  onConfirm,
+  className = 'btn ghost sm',
+  disabled,
+}: {
+  children: ReactNode;
+  confirm: string;
+  onConfirm: () => void;
+  className?: string;
+  disabled?: boolean;
+}) {
   const [armed, setArmed] = useState(false);
   useEffect(() => {
     if (!armed) return;

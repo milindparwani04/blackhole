@@ -7,7 +7,7 @@ import { openDb } from '../../apps/api/src/db/db.js';
 import { buildServer } from '../../apps/api/src/server.js';
 import { resetGuidePageStateForTests } from '../../apps/api/src/adapters/guidepage.js';
 import { parseRtPage, rtSlug } from '../../apps/api/src/adapters/rottentomatoes.js';
-import { resetMovieRatingStateForTests } from '../../apps/api/src/services/movies.js';
+import { movieRatingsSettled, resetMovieRatingStateForTests } from '../../apps/api/src/services/movies.js';
 
 const PORT = 4317;
 const headers = { host: `127.0.0.1:${PORT}`, origin: `http://127.0.0.1:${PORT}`, 'x-blackhole': '1' };
@@ -48,7 +48,9 @@ describe('movie ratings on add', () => {
       vi.fn(async (url: URL | string) => {
         const u = new URL(String(url));
         if (u.hostname === 'api.themoviedb.org')
-          return new Response(JSON.stringify({ id: 438631, title: 'Dune', release_date: '2021-09-15', runtime: 155, imdb_id: 'tt1160419', genres: [], credits: { crew: [] } }));
+          return new Response(
+            JSON.stringify({ id: 438631, title: 'Dune', release_date: '2021-09-15', runtime: 155, imdb_id: 'tt1160419', genres: [], credits: { crew: [] } }),
+          );
         if (u.hostname === 'datasets.imdbws.com') return new Response(ratings);
         if (u.pathname === '/robots.txt') return new Response('User-agent: *\nDisallow: /search\n');
         if (u.pathname === '/m/dune_2021') return new Response(rtPage('Dune (2021)', 2021, '"90"'));
@@ -70,7 +72,13 @@ describe('movie ratings on add', () => {
       payload: { type: 'MOVIE', title: 'Dune', year: 2021, external: { provider: 'TMDB', external_id: '438631' } },
     });
     expect(res.statusCode).toBe(201);
-    const movie = res.json().detail.movie;
+    // The add returns at once; ratings load in the background and the detail says so.
+    const added = res.json().detail;
+    expect(added.movie.ratings_pending).toBe(true);
+    await movieRatingsSettled(added.media.id);
+    const detail = (await app.inject({ method: 'GET', url: `/api/library/${added.entry.id}`, headers })).json();
+    const movie = detail.movie;
+    expect(movie.ratings_pending).toBe(false);
     expect(movie.ratings.imdb).toMatchObject({ score: 8, scale: 10, votes: 950000, url: 'https://www.imdb.com/title/tt1160419/' });
     expect(movie.ratings.rt_audience).toMatchObject({ score: 90, scale: 100, url: 'https://www.rottentomatoes.com/m/dune_2021' });
     expect(movie.attribution.join(' ')).toContain('IMDb');

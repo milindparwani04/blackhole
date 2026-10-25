@@ -16,7 +16,10 @@
     "start": "npm run build && cross-env NODE_ENV=production tsx --env-file-if-exists=.env apps/api/src/server.ts",
     "serve": "cross-env NODE_ENV=production tsx --env-file-if-exists=.env apps/api/src/server.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p apps/web/tsconfig.json --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "lint": "oxlint --deny-warnings",
+    "format": "prettier --write \"{apps,packages,tests}/**/*.{ts,tsx}\" \"*.config.ts\"",
+    "format:check": "prettier --check \"{apps,packages,tests}/**/*.{ts,tsx}\" \"*.config.ts\""
   },
   "dependencies": {
     "@fastify/static": "^10.1.7",
@@ -33,6 +36,8 @@
     "@vitejs/plugin-react": "^6.1.2",
     "concurrently": "^10.0.6",
     "cross-env": "^10.1.0",
+    "oxlint": "^1.89.0",
+    "prettier": "^3.9.10",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2",
     "vite": "^8.3.5",

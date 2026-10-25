@@ -16,14 +16,7 @@ export type PsPlatform = (typeof PS_PLATFORMS)[number];
 export type PlatinumState = 'YES' | 'NO' | 'UNKNOWN';
 
 export type ApiErrorCode =
-  | 'VALIDATION_ERROR'
-  | 'NOT_FOUND'
-  | 'CONFLICT'
-  | 'SOURCE_UNAVAILABLE'
-  | 'RATE_LIMITED'
-  | 'PERMISSION_REQUIRED'
-  | 'FORBIDDEN_ORIGIN'
-  | 'INTERNAL_ERROR';
+  'VALIDATION_ERROR' | 'NOT_FOUND' | 'CONFLICT' | 'SOURCE_UNAVAILABLE' | 'RATE_LIMITED' | 'PERMISSION_REQUIRED' | 'FORBIDDEN_ORIGIN' | 'INTERNAL_ERROR';
 
 export interface ApiError {
   error: { code: ApiErrorCode; message: string; requestId: string };
@@ -162,10 +155,18 @@ export interface MovieRatings {
 export interface EntryDetail {
   entry: LibraryEntry;
   media: MediaItem;
-  game?: { times: TimeEstimate[]; trophies: TrophyGuide[]; platinum_applicable: boolean; play_ps: PsPlatform | null; trophy_job: TrophyJob | null; igdb_linked: boolean };
+  game?: {
+    times: TimeEstimate[];
+    trophies: TrophyGuide[];
+    platinum_applicable: boolean;
+    play_ps: PsPlatform | null;
+    trophy_job: TrophyJob | null;
+    igdb_linked: boolean;
+  };
   tv?: { seasons: Season[]; progress: TvProgress; ratings_attribution: string | null };
   book?: { edition: BookEdition };
-  movie?: { ratings: MovieRatings; attribution: string[] };
+  /** `ratings_pending`: a background IMDb / RT refresh is still running (e.g. just after adding). */
+  movie?: { ratings: MovieRatings; attribution: string[]; ratings_pending: boolean };
   events: ProgressEvent[];
 }
 
@@ -258,7 +259,6 @@ export interface TrophyJob {
   created_at: string;
 }
 
-
 /** One film/book read from Letterboxd or a Goodreads export, with its provider match (if any). Nothing is stored until imported. */
 export interface ImportItem {
   /** Unique within one preview (Letterboxd slug / Goodreads book id). */
@@ -276,7 +276,15 @@ export interface ImportItem {
   pages: number | null;
   isbn: string | null;
   source_url: string | null;
-  match: { provider: 'TMDB' | 'OPENLIBRARY'; external_id: string; title: string; year: number | null; cover_url: string | null; synopsis: string | null; genres: string[] } | null;
+  match: {
+    provider: 'TMDB' | 'OPENLIBRARY';
+    external_id: string;
+    title: string;
+    year: number | null;
+    cover_url: string | null;
+    synopsis: string | null;
+    genres: string[];
+  } | null;
   /** Entry id when this title is already in the Pit. */
   in_pit: string | null;
 }

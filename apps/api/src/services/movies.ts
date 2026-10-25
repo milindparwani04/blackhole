@@ -25,9 +25,17 @@ export function resetMovieRatingStateForTests() {
   rtCache.clear();
   rtTried.clear();
   imdbTried.clear();
+  pending.clear();
 }
 
-const toRating = (r: any): MediaRating => ({ score: r.score, scale: r.scale, votes: r.votes ?? null, label: r.label ?? null, url: r.url ?? null, fetched_at: r.fetched_at });
+const toRating = (r: any): MediaRating => ({
+  score: r.score,
+  scale: r.scale,
+  votes: r.votes ?? null,
+  label: r.label ?? null,
+  url: r.url ?? null,
+  fetched_at: r.fetched_at,
+});
 
 export function movieRatings(db: DB, mediaId: string): MovieRatings {
   const rows = all<any>(db, 'SELECT * FROM media_ratings WHERE media_id = :m', { m: mediaId });
@@ -48,7 +56,8 @@ export function allMovieRatings(db: DB): Map<string, MovieRatings> {
   return out;
 }
 
-export const movieRatingAttribution = (r: MovieRatings) => [r.imdb ? `IMDb rating: ${IMDB_ATTRIBUTION}` : null, r.rt_audience ? RT_ATTRIBUTION : null].filter((x): x is string => !!x);
+export const movieRatingAttribution = (r: MovieRatings) =>
+  [r.imdb ? `IMDb rating: ${IMDB_ATTRIBUTION}` : null, r.rt_audience ? RT_ATTRIBUTION : null].filter((x): x is string => !!x);
 
 function saveRt(db: DB, mediaId: string, rt: RtAudience | null) {
   if (!rt) {
@@ -63,6 +72,28 @@ function saveRt(db: DB, mediaId: string, rt: RtAudience | null) {
   );
 }
 
+// Background refreshes in flight, by media id, so the detail view can say ratings are on their way.
+const pending = new Map<string, Promise<void>>();
+
+/** Starts a ratings refresh without waiting for it (a new movie's ratings land a few seconds after it is added). */
+export function refreshMovieRatingsInBackground(db: DB, dataDir: string, mediaId: string): Promise<void> {
+  const running = pending.get(mediaId);
+  if (running) return running;
+  const p = refreshMovieRatings(db, dataDir, mediaId)
+    .then(
+      () => undefined,
+      () => undefined,
+    )
+    .finally(() => pending.delete(mediaId));
+  pending.set(mediaId, p);
+  return p;
+}
+
+export const movieRatingsPending = (mediaId: string) => pending.has(mediaId);
+
+/** Resolves when this movie's background refresh (if any) has finished. */
+export const movieRatingsSettled = (mediaId: string) => pending.get(mediaId) ?? Promise.resolve();
+
 /**
  * Links the movie's IMDb ID (via TMDb) and refreshes its IMDb rating and RT audience score. Each source fails on its
  * own: a failure keeps that source's last value and is reported in `errors`.
@@ -71,8 +102,11 @@ export async function refreshMovieRatings(db: DB, dataDir: string, mediaId: stri
   const errors: string[] = [];
   const m = get<{ title: string; year: number | null }>(db, 'SELECT title, year FROM media_items WHERE id = :m', { m: mediaId });
   if (!m) return { errors };
-  const tmdbId = get<{ external_id: string }>(db, `SELECT external_id FROM external_ids WHERE media_id = :m AND provider = 'TMDB'`, { m: mediaId })?.external_id;
-  let imdb = get<{ external_id: string }>(db, `SELECT external_id FROM external_ids WHERE media_id = :m AND provider = 'IMDB'`, { m: mediaId })?.external_id ?? null;
+  const tmdbId = get<{ external_id: string }>(db, `SELECT external_id FROM external_ids WHERE media_id = :m AND provider = 'TMDB'`, {
+    m: mediaId,
+  })?.external_id;
+  let imdb =
+    get<{ external_id: string }>(db, `SELECT external_id FROM external_ids WHERE media_id = :m AND provider = 'IMDB'`, { m: mediaId })?.external_id ?? null;
   if (!imdb && tmdbId && tmdbConfigured()) {
     try {
       imdb = storeImdbId(db, mediaId, 'MOVIE', (await movieDetail(tmdbId)).imdb_id);
@@ -95,12 +129,12 @@ export async function refreshMovieRatings(db: DB, dataDir: string, mediaId: stri
 export async function previewMovieRatings(dataDir: string, tmdbId: string): Promise<MovieRatings> {
   const d = await movieDetail(tmdbId);
   const now = nowIso();
-  const [imdb, rt] = await Promise.all([
-    d.imdb_id ? imdbTitleRating(dataDir, d.imdb_id).catch(() => null) : null,
-    rtCached(d.title, d.year).catch(() => null),
-  ]);
+  const [imdb, rt] = await Promise.all([d.imdb_id ? imdbTitleRating(dataDir, d.imdb_id).catch(() => null) : null, rtCached(d.title, d.year).catch(() => null)]);
   return {
-    imdb: imdb && d.imdb_id ? { score: imdb.score, scale: 10, votes: imdb.votes, label: null, url: `https://www.imdb.com/title/${d.imdb_id}/`, fetched_at: now } : null,
+    imdb:
+      imdb && d.imdb_id
+        ? { score: imdb.score, scale: 10, votes: imdb.votes, label: null, url: `https://www.imdb.com/title/${d.imdb_id}/`, fetched_at: now }
+        : null,
     rt_audience: rt ? { score: rt.score, scale: 100, votes: null, label: rt.label, url: rt.url, fetched_at: now } : null,
   };
 }

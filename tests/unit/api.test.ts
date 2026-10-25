@@ -28,9 +28,19 @@ describe('security boundary', () => {
     expect(res.statusCode).toBe(403);
   });
   it('rejects cross-origin mutations and mutations without the custom header', async () => {
-    const evil = await app.inject({ method: 'POST', url: '/api/library', headers: { ...headers, origin: 'https://evil.example' }, payload: { type: 'GAME', title: 'x' } });
+    const evil = await app.inject({
+      method: 'POST',
+      url: '/api/library',
+      headers: { ...headers, origin: 'https://evil.example' },
+      payload: { type: 'GAME', title: 'x' },
+    });
     expect(evil.statusCode).toBe(403);
-    const noHeader = await app.inject({ method: 'POST', url: '/api/library', headers: { host: headers.host, origin: ORIGIN }, payload: { type: 'GAME', title: 'x' } });
+    const noHeader = await app.inject({
+      method: 'POST',
+      url: '/api/library',
+      headers: { host: headers.host, origin: ORIGIN },
+      payload: { type: 'GAME', title: 'x' },
+    });
     expect(noHeader.statusCode).toBe(403);
   });
   it('rejects non-https URLs', async () => {

@@ -7,9 +7,25 @@ import { fetchJson, plainText, safeImage } from './http.js';
 export const TMDB_ATTRIBUTION = 'This product uses the TMDB API but is not endorsed or certified by TMDB.';
 
 const GENRES: Record<number, string> = {
-  28: 'Action', 12: 'Adventure', 16: 'Animation', 35: 'Comedy', 80: 'Crime', 99: 'Documentary', 18: 'Drama',
-  10751: 'Family', 14: 'Fantasy', 36: 'History', 27: 'Horror', 10402: 'Music', 9648: 'Mystery', 10749: 'Romance',
-  878: 'Science Fiction', 10770: 'TV Movie', 53: 'Thriller', 10752: 'War', 37: 'Western',
+  28: 'Action',
+  12: 'Adventure',
+  16: 'Animation',
+  35: 'Comedy',
+  80: 'Crime',
+  99: 'Documentary',
+  18: 'Drama',
+  10751: 'Family',
+  14: 'Fantasy',
+  36: 'History',
+  27: 'Horror',
+  10402: 'Music',
+  9648: 'Mystery',
+  10749: 'Romance',
+  878: 'Science Fiction',
+  10770: 'TV Movie',
+  53: 'Thriller',
+  10752: 'War',
+  37: 'Western',
 };
 
 interface TmdbMovie {
@@ -41,7 +57,12 @@ function tmdb<T>(path: string, params: Record<string, string> = {}): Promise<T> 
 const poster = (p?: string | null) => (p && /^\/[\w.-]+$/.test(p) ? safeImage(`https://image.tmdb.org/t/p/w342${p}`) : null);
 
 export async function searchMovies(q: string, year?: number | null): Promise<SearchResult[]> {
-  const r = await tmdb<{ results: TmdbMovie[] }>('search/movie', { query: q, include_adult: 'false', language: 'en-GB', ...(year ? { year: String(year) } : {}) });
+  const r = await tmdb<{ results: TmdbMovie[] }>('search/movie', {
+    query: q,
+    include_adult: 'false',
+    language: 'en-GB',
+    ...(year ? { year: String(year) } : {}),
+  });
   return r.results.slice(0, 15).map((m) => ({
     provider: 'TMDB',
     external_id: String(m.id),
@@ -50,7 +71,10 @@ export async function searchMovies(q: string, year?: number | null): Promise<Sea
     year: m.release_date ? Number(m.release_date.slice(0, 4)) || null : null,
     synopsis: plainText(m.overview),
     cover_url: poster(m.poster_path),
-    genres: (m.genre_ids ?? []).map((g) => GENRES[g]).filter(Boolean).slice(0, 3),
+    genres: (m.genre_ids ?? [])
+      .map((g) => GENRES[g])
+      .filter(Boolean)
+      .slice(0, 3),
     platforms: [],
     creator: null,
     runtime_min: null,
@@ -62,7 +86,9 @@ export async function searchMovies(q: string, year?: number | null): Promise<Sea
 }
 
 /** Runtime, director and the IMDb ID only come from the detail endpoint. */
-export async function movieDetail(id: string): Promise<{ runtime_min: number | null; director: string | null; genres: string[]; imdb_id: string | null; title: string; year: number | null }> {
+export async function movieDetail(
+  id: string,
+): Promise<{ runtime_min: number | null; director: string | null; genres: string[]; imdb_id: string | null; title: string; year: number | null }> {
   if (!/^\d+$/.test(id)) throw new AppError('VALIDATION_ERROR', 'Invalid TMDb id');
   const d = await tmdb<TmdbDetail>(`movie/${id}`, { append_to_response: 'credits', language: 'en-GB' });
   return {

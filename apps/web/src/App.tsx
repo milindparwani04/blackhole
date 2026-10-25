@@ -50,7 +50,14 @@ export function App() {
   }, []);
 
   useEffect(() => {
-    api.stats().then(setStats).catch(() => setStats(null));
+    let live = true;
+    api
+      .stats()
+      .then((s) => live && setStats(s))
+      .catch(() => live && setStats(null));
+    return () => {
+      live = false;
+    };
   }, [version]);
 
   const notify = useCallback<AppCtx['notify']>((message, opts) => {
@@ -202,8 +209,19 @@ function GlobalSearch() {
 
   useEffect(() => {
     if (!text) return setRows([]);
-    const t = setTimeout(() => api.list({ q: text, type: type ?? undefined }).then((r) => setRows(r.slice(0, 7))).catch(() => setRows([])), 150);
-    return () => clearTimeout(t);
+    let live = true;
+    const t = setTimeout(
+      () =>
+        api
+          .list({ q: text, type: type ?? undefined })
+          .then((r) => live && setRows(r.slice(0, 7)))
+          .catch(() => live && setRows([])),
+      150,
+    );
+    return () => {
+      live = false;
+      clearTimeout(t);
+    };
   }, [text, type, version]);
 
   const find = (t: MediaType) => {
@@ -272,7 +290,12 @@ function GlobalSearch() {
                   <div className="search-cmds">
                     <span className="muted">Find new:</span>
                     {COMMANDS.map((c) => (
-                      <button key={c.cmd} className="btn xs" onClick={() => find(c.type)} title={`Search ${TYPE_LABEL[c.type].many.toLowerCase()} for “${text}”`}>
+                      <button
+                        key={c.cmd}
+                        className="btn xs"
+                        onClick={() => find(c.type)}
+                        title={`Search ${TYPE_LABEL[c.type].many.toLowerCase()} for “${text}”`}
+                      >
                         /{c.cmd}
                       </button>
                     ))}
@@ -286,4 +309,3 @@ function GlobalSearch() {
     </div>
   );
 }
-

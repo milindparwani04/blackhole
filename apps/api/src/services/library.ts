@@ -15,7 +15,7 @@ import type {
   TvProgress,
 } from '../../../../packages/shared/src/index.js';
 import { all, get, nowIso, run, tx, uuid, type DB } from '../db/db.js';
-import { allMovieRatings, movieRatingAttribution, movieRatings } from './movies.js';
+import { allMovieRatings, movieRatingAttribution, movieRatings, movieRatingsPending } from './movies.js';
 import { AppError } from '../security/errors.js';
 import { latestJob } from './trophies.js';
 
@@ -131,7 +131,13 @@ export const isPlayStation = (platforms: string[]) => platforms.some((p) => psPl
 
 /** D-05 default: PS5 if available (owner plays there ~90% of the time), else PS4, else the first listed platform. */
 export function defaultPlayPlatform(platforms: string[]): string | null {
-  return platforms.find((p) => psPlatform(p) === 'PS5') ?? platforms.find((p) => psPlatform(p) === 'PS4') ?? platforms.find((p) => psPlatform(p)) ?? platforms[0] ?? null;
+  return (
+    platforms.find((p) => psPlatform(p) === 'PS5') ??
+    platforms.find((p) => psPlatform(p) === 'PS4') ??
+    platforms.find((p) => psPlatform(p)) ??
+    platforms[0] ??
+    null
+  );
 }
 
 // ---------- creation ----------
@@ -197,11 +203,12 @@ export function addToPit(db: DB, m: NewMedia): { entryId: string; duplicate: boo
       },
     );
     if (m.external) run(db, `INSERT INTO external_ids VALUES (:provider, :object_type, :external_id, :media_id)`, { ...m.external, media_id: mediaId });
-    run(
-      db,
-      `INSERT INTO library_entries (id, media_id, play_platform, created_at, updated_at) VALUES (:id, :media_id, :play, :now, :now)`,
-      { id: entryId, media_id: mediaId, now, play: m.type === 'GAME' ? (m.play_platform ?? defaultPlayPlatform(m.platforms ?? [])) : null },
-    );
+    run(db, `INSERT INTO library_entries (id, media_id, play_platform, created_at, updated_at) VALUES (:id, :media_id, :play, :now, :now)`, {
+      id: entryId,
+      media_id: mediaId,
+      now,
+      play: m.type === 'GAME' ? (m.play_platform ?? defaultPlayPlatform(m.platforms ?? [])) : null,
+    });
     if (m.type === 'BOOK') {
       run(db, `INSERT INTO book_editions (media_id, pages, isbn, pages_source) VALUES (:media_id, :pages, :isbn, :pages_source)`, {
         media_id: mediaId,
@@ -342,7 +349,9 @@ export function undoEvent(db: DB, eventId: string): string {
     if (payload.entry_before) {
       const b = payload.entry_before as Record<string, unknown>;
       // Older snapshots may predate newer columns; only restore what was captured.
-      const sets = ENTRY_MUTABLE.filter((f) => f in b).map((f) => `${f} = :${f}`).join(', ');
+      const sets = ENTRY_MUTABLE.filter((f) => f in b)
+        .map((f) => `${f} = :${f}`)
+        .join(', ');
       run(db, `UPDATE library_entries SET ${sets}, updated_at = :now, version = version + 1 WHERE id = :id`, {
         ...b,
         now: nowIso(),
@@ -521,7 +530,13 @@ export function reconcileTv(db: DB, entryId: string): string | null {
     .flatMap((s) => s.episodes)
     .filter((e) => e.released && !e.watched && (!e.airdate || e.airdate >= since));
   if (!fresh.length) return null;
-  return mutateEntry(db, entryId, 'NEW_EPISODES', `${fresh.length} new episode${fresh.length === 1 ? '' : 's'} aired — back in the Pit`, statusChanges(entry, 'IN_PROGRESS'));
+  return mutateEntry(
+    db,
+    entryId,
+    'NEW_EPISODES',
+    `${fresh.length} new episode${fresh.length === 1 ? '' : 's'} aired — back in the Pit`,
+    statusChanges(entry, 'IN_PROGRESS'),
+  );
 }
 
 /** Bulk-marks released episodes of a season (or every regular season) watched/unwatched. Specials and unreleased are skipped. */
@@ -538,9 +553,16 @@ export function setSeasonWatched(db: DB, entryId: string, seasonNumber: number |
   if (!episodes.length) return null;
   const changes = tvStatusChanges(db, entry, episodes);
   const label = seasonNumber === 'ALL' ? 'All released episodes' : `Season ${seasonNumber}`;
-  return mutateEntry(db, entryId, 'SEASON', `${label} marked ${watched ? 'watched' : 'unwatched'} (${episodes.length} episodes)${statusNote(changes)}`, changes, {
-    episodes,
-  });
+  return mutateEntry(
+    db,
+    entryId,
+    'SEASON',
+    `${label} marked ${watched ? 'watched' : 'unwatched'} (${episodes.length} episodes)${statusNote(changes)}`,
+    changes,
+    {
+      episodes,
+    },
+  );
 }
 
 // ---------- detail + list ----------
@@ -550,11 +572,9 @@ export function loadDetail(db: DB, entryId: string): EntryDetail {
   const m = get<any>(db, 'SELECT * FROM media_items WHERE id = :id', { id: e.media_id });
   const media = mapMedia(m);
   const undoable = latestUndoableId(db, entryId);
-  const events: ProgressEvent[] = all<any>(
-    db,
-    'SELECT * FROM progress_events WHERE entry_id = :id ORDER BY occurred_at DESC, rowid DESC LIMIT 30',
-    { id: entryId },
-  ).map((r) => ({
+  const events: ProgressEvent[] = all<any>(db, 'SELECT * FROM progress_events WHERE entry_id = :id ORDER BY occurred_at DESC, rowid DESC LIMIT 30', {
+    id: entryId,
+  }).map((r) => ({
     id: r.id,
     event_type: r.event_type,
     summary: r.summary,
@@ -587,7 +607,7 @@ export function loadDetail(db: DB, entryId: string): EntryDetail {
   if (media.type === 'TV') detail.tv = loadSeasons(db, media.id, entryId);
   if (media.type === 'MOVIE') {
     const ratings = movieRatings(db, media.id);
-    detail.movie = { ratings, attribution: movieRatingAttribution(ratings) };
+    detail.movie = { ratings, attribution: movieRatingAttribution(ratings), ratings_pending: movieRatingsPending(media.id) };
   }
   if (media.type === 'BOOK') {
     const b = get<any>(db, 'SELECT * FROM book_editions WHERE media_id = :id', { id: media.id });

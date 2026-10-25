@@ -116,8 +116,28 @@ describe('Letterboxd import', () => {
         if (u.hostname === 'api.themoviedb.org') {
           const q = u.searchParams.get('query');
           if (u.pathname === '/3/search/movie')
-            return new Response(JSON.stringify({ results: q === 'Heat' ? [tmdbHit(949, 'Heat', '1995-12-15')] : q === 'Ronin' ? [tmdbHit(8195, 'Ronin', '1998-09-25')] : q === 'Dune' ? [tmdbHit(438631, 'Dune', '2021-09-15')] : [] }));
-          return new Response(JSON.stringify({ id: 1, title: 'x', runtime: 120, imdb_id: null, genres: [{ id: 18, name: 'Drama' }], credits: { crew: [{ job: 'Director', name: 'Someone' }] } }));
+            return new Response(
+              JSON.stringify({
+                results:
+                  q === 'Heat'
+                    ? [tmdbHit(949, 'Heat', '1995-12-15')]
+                    : q === 'Ronin'
+                      ? [tmdbHit(8195, 'Ronin', '1998-09-25')]
+                      : q === 'Dune'
+                        ? [tmdbHit(438631, 'Dune', '2021-09-15')]
+                        : [],
+              }),
+            );
+          return new Response(
+            JSON.stringify({
+              id: 1,
+              title: 'x',
+              runtime: 120,
+              imdb_id: null,
+              genres: [{ id: 18, name: 'Drama' }],
+              credits: { crew: [{ job: 'Director', name: 'Someone' }] },
+            }),
+          );
         }
         return new Response('not found', { status: 404 });
       }),
@@ -166,17 +186,27 @@ describe('Letterboxd import', () => {
     const files: Record<string, string> = {
       'watched.csv': 'Date,Name,Year,Letterboxd URI\n2026-01-01,Heat,1995,https://boxd.it/abc\n2026-01-02,"Obscure, Short",2019,https://boxd.it/def\n',
       'ratings.csv': 'Date,Name,Year,Letterboxd URI,Rating\n2026-01-01,Heat,1995,https://boxd.it/abc,4.5\n',
-      'diary.csv': 'Date,Name,Year,Letterboxd URI,Rating,Rewatch,Tags,Watched Date\n2026-01-01,Heat,1995,https://boxd.it/x1,4.5,,,2024-03-02\n2026-01-03,Heat,1995,https://boxd.it/x2,4.5,Yes,,2025-07-09\n',
+      'diary.csv':
+        'Date,Name,Year,Letterboxd URI,Rating,Rewatch,Tags,Watched Date\n2026-01-01,Heat,1995,https://boxd.it/x1,4.5,,,2024-03-02\n2026-01-03,Heat,1995,https://boxd.it/x2,4.5,Yes,,2025-07-09\n',
       'watchlist.csv': 'Date,Name,Year,Letterboxd URI\n2026-01-01,Dune,2021,https://boxd.it/ghi\n2026-01-01,Heat,1995,https://boxd.it/abc\n',
     };
-    const zip = zipOf({ ...Object.fromEntries(Object.entries(files).map(([k, v]) => [`letterboxd-me/${k}`, v])), 'letterboxd-me/deleted/watched.csv': 'Date,Name,Year,Letterboxd URI\n2026-01-01,Gone,2000,https://boxd.it/zzz\n' });
+    const zip = zipOf({
+      ...Object.fromEntries(Object.entries(files).map(([k, v]) => [`letterboxd-me/${k}`, v])),
+      'letterboxd-me/deleted/watched.csv': 'Date,Name,Year,Letterboxd URI\n2026-01-01,Gone,2000,https://boxd.it/zzz\n',
+    });
     const viaZip = await finish((await call('POST', '/api/import/letterboxd/export', { zip: zip.toString('base64') })).body.id);
     const viaCsv = await finish((await call('POST', '/api/import/letterboxd/export', { files })).body.id);
     for (const p of [viaZip, viaCsv]) {
       expect(p.error).toBeNull();
       expect(p.notice).toBeNull();
       expect(p.items.map((i: any) => i.title)).toEqual(['Heat', 'Obscure, Short', 'Dune']);
-      expect(p.items[0]).toMatchObject({ status: 'COMPLETED', rating: 9, completed_at: '2025-07-09T12:00:00.000Z', source_url: 'https://boxd.it/abc', match: { external_id: '949' } });
+      expect(p.items[0]).toMatchObject({
+        status: 'COMPLETED',
+        rating: 9,
+        completed_at: '2025-07-09T12:00:00.000Z',
+        source_url: 'https://boxd.it/abc',
+        match: { external_id: '949' },
+      });
       expect(p.items[1]).toMatchObject({ status: 'COMPLETED', rating: null, completed_at: null, match: null });
       expect(p.items[2]).toMatchObject({ status: 'PLANNED', match: { external_id: '438631' } });
     }
@@ -194,9 +224,35 @@ describe('Letterboxd import', () => {
 
   it('rejects non-Letterboxd links and items pointing elsewhere', async () => {
     expect((await call('POST', '/api/import/letterboxd/preview', { profile: 'https://example.com/me' })).status).toBe(400);
-    const ok = { key: 'x', source: 'LETTERBOXD', type: 'MOVIE', title: 'X', year: 2000, creator: null, rating: null, status: 'COMPLETED', completed_at: null, pages: null, isbn: null, source_url: 'https://letterboxd.com/film/x/', match: null, in_pit: null };
+    const ok = {
+      key: 'x',
+      source: 'LETTERBOXD',
+      type: 'MOVIE',
+      title: 'X',
+      year: 2000,
+      creator: null,
+      rating: null,
+      status: 'COMPLETED',
+      completed_at: null,
+      pages: null,
+      isbn: null,
+      source_url: 'https://letterboxd.com/film/x/',
+      match: null,
+      in_pit: null,
+    };
     expect((await call('POST', '/api/import', { items: [{ ...ok, source_url: 'https://evil.example/film/x/' }] })).status).toBe(400);
-    expect((await call('POST', '/api/import', { items: [{ ...ok, match: { provider: 'TMDB', external_id: '1', title: 'X', year: 2000, cover_url: 'https://evil.example/a.jpg', synopsis: null, genres: [] } }] })).status).toBe(400);
+    expect(
+      (
+        await call('POST', '/api/import', {
+          items: [
+            {
+              ...ok,
+              match: { provider: 'TMDB', external_id: '1', title: 'X', year: 2000, cover_url: 'https://evil.example/a.jpg', synopsis: null, genres: [] },
+            },
+          ],
+        })
+      ).status,
+    ).toBe(400);
     expect((await call('POST', '/api/import', { items: [{ ...ok, type: 'BOOK' }] })).status).toBe(400);
   });
 });
@@ -224,7 +280,14 @@ describe('Goodreads import', () => {
     }
     throw new Error('job never finished');
   };
-  const olDoc = (key: string, title: string, author: string, year: number) => ({ key, title, author_name: [author], first_publish_year: year, cover_i: 1, number_of_pages_median: 999 });
+  const olDoc = (key: string, title: string, author: string, year: number) => ({
+    key,
+    title,
+    author_name: [author],
+    first_publish_year: year,
+    cover_i: 1,
+    number_of_pages_median: 999,
+  });
 
   beforeEach(() => {
     app = buildServer({ db: openDb(':memory:'), host: '127.0.0.1', port: PORT, dataDir: 'data-test' });
@@ -250,7 +313,10 @@ describe('Goodreads import', () => {
   });
 
   it('parses the export: quoted fields, ISBN wrappers, shelves, stars and dates', () => {
-    expect(parseCsv('a,"b ""c"", d"\r\n1,2')).toEqual([['a', 'b "c", d'], ['1', '2']]);
+    expect(parseCsv('a,"b ""c"", d"\r\n1,2')).toEqual([
+      ['a', 'b "c", d'],
+      ['1', '2'],
+    ]);
     expect(stripSeries('Mistborn: The Final Empire (Mistborn, #1)')).toBe('Mistborn: The Final Empire');
     expect(stripSeries('Shoe Dog (A Memoir)')).toBe('Shoe Dog (A Memoir)');
     const [mistborn, red, quoted, obscure] = parseGoodreadsCsv(CSV);
@@ -273,7 +339,11 @@ describe('Goodreads import', () => {
     const preview = await finish(started.body.id);
     expect(preview.error).toBeNull();
     const [mistborn, red, quoted, obscure] = preview.items;
-    expect(mistborn).toMatchObject({ title: 'Mistborn: The Final Empire', match: { external_id: '/works/OL5738148W' }, completed_at: '2026-05-27T12:00:00.000Z' });
+    expect(mistborn).toMatchObject({
+      title: 'Mistborn: The Final Empire',
+      match: { external_id: '/works/OL5738148W' },
+      completed_at: '2026-05-27T12:00:00.000Z',
+    });
     expect(red.match.external_id).toBe('/works/OL17076473W');
     expect(quoted.match).toBeNull();
     expect(obscure.match).toBeNull();
@@ -282,7 +352,12 @@ describe('Goodreads import', () => {
     expect(done.result).toEqual({ added: 4, skipped: 0, failed: [] });
     const rows = (await call('GET', '/api/library?type=BOOK')).body as any[];
     const get = (t: string) => rows.find((r) => r.media.title === t);
-    expect(get('Mistborn: The Final Empire').entry).toMatchObject({ status: 'COMPLETED', personal_rating: 8, completed_at: '2026-05-27T12:00:00.000Z', current_page: 541 });
+    expect(get('Mistborn: The Final Empire').entry).toMatchObject({
+      status: 'COMPLETED',
+      personal_rating: 8,
+      completed_at: '2026-05-27T12:00:00.000Z',
+      current_page: 541,
+    });
     // The export's own edition page count wins over Open Library's median.
     expect(get('Mistborn: The Final Empire').pages).toBe(541);
     expect(get('Red Rising').entry).toMatchObject({ status: 'IN_PROGRESS', personal_rating: null });

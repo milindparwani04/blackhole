@@ -65,7 +65,10 @@ export async function downloadFile(
   try {
     res = await fetch(u, {
       signal: AbortSignal.timeout(timeoutMs),
-      headers: { 'User-Agent': 'Blackhole/0.1 (local personal media library)', ...(ifModifiedSince ? { 'If-Modified-Since': ifModifiedSince.toUTCString() } : {}) },
+      headers: {
+        'User-Agent': 'Blackhole/0.1 (local personal media library)',
+        ...(ifModifiedSince ? { 'If-Modified-Since': ifModifiedSince.toUTCString() } : {}),
+      },
       redirect: 'error',
     });
   } catch {
@@ -106,7 +109,9 @@ export function safeImage(url: unknown): string | null {
   try {
     const u = new URL(url);
     if (u.protocol === 'http:' && u.hostname === 'static.tvmaze.com') u.protocol = 'https:';
-    return u.protocol === 'https:' && ['static.tvmaze.com', 'covers.openlibrary.org', 'images.igdb.com', 'image.tmdb.org'].includes(u.hostname) ? u.toString() : null;
+    return u.protocol === 'https:' && ['static.tvmaze.com', 'covers.openlibrary.org', 'images.igdb.com', 'image.tmdb.org'].includes(u.hostname)
+      ? u.toString()
+      : null;
   } catch {
     return null;
   }

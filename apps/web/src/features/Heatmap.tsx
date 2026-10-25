@@ -84,14 +84,16 @@ export function Heatmap({ d, act, onClose }: { d: EntryDetail; act: Act; onClose
             <h2 className="h-title">{d.media.title}</h2>
           </div>
           <div className="row gap wrap">
-            {showReviews && <div className="seg" role="radiogroup" aria-label="Heatmap mode">
-              <button role="radio" aria-checked={mode === 'ratings'} className={mode === 'ratings' ? 'on' : ''} onClick={() => setMode('ratings')}>
-                Ratings
-              </button>
-              <button role="radio" aria-checked={mode === 'progress'} className={mode === 'progress' ? 'on' : ''} onClick={() => setMode('progress')}>
-                My progress
-              </button>
-            </div>}
+            {showReviews && (
+              <div className="seg" role="radiogroup" aria-label="Heatmap mode">
+                <button role="radio" aria-checked={mode === 'ratings'} className={mode === 'ratings' ? 'on' : ''} onClick={() => setMode('ratings')}>
+                  Ratings
+                </button>
+                <button role="radio" aria-checked={mode === 'progress'} className={mode === 'progress' ? 'on' : ''} onClick={() => setMode('progress')}>
+                  My progress
+                </button>
+              </div>
+            )}
             <button className="btn ghost sm" onClick={() => setAsList(!asList)} aria-pressed={asList}>
               {asList ? 'Grid view' : 'List view'}
             </button>
@@ -102,7 +104,10 @@ export function Heatmap({ d, act, onClose }: { d: EntryDetail; act: Act; onClose
         </div>
 
         {mode === 'ratings' && !hasRatings && (
-          <div className="notice">Ratings unavailable for this show. IMDb has no episode ratings for it yet (new shows can take a while), so no colours are invented. Switch to “My progress”.</div>
+          <div className="notice">
+            Ratings unavailable for this show. IMDb has no episode ratings for it yet (new shows can take a while), so no colours are invented. Switch to “My
+            progress”.
+          </div>
         )}
 
         <div className="heatmap-body">
@@ -161,7 +166,8 @@ export function Heatmap({ d, act, onClose }: { d: EntryDetail; act: Act; onClose
                     </span>
                     {seasons.map((s, si) => {
                       const ep = cell(si, ei);
-                      if (!ep) return <span role="gridcell" key={s.id} className="heat-cell absent" aria-label={`Season ${s.number} has no episode ${ei + 1}`} />;
+                      if (!ep)
+                        return <span role="gridcell" key={s.id} className="heat-cell absent" aria-label={`Season ${s.number} has no episode ${ei + 1}`} />;
                       const cls =
                         mode === 'ratings'
                           ? ep.rating
@@ -211,7 +217,10 @@ export function Heatmap({ d, act, onClose }: { d: EntryDetail; act: Act; onClose
                 season={picked.season}
                 ep={seasons.flatMap((s) => s.episodes).find((x) => x.id === picked.ep.id) ?? picked.ep}
                 onToggle={async (ep) => {
-                  const r = await act(() => api.watchEpisode(d.entry.id, ep.id, !ep.watched), `S${picked.season}E${ep.number} ${ep.watched ? 'unwatched' : 'watched'}`);
+                  const r = await act(
+                    () => api.watchEpisode(d.entry.id, ep.id, !ep.watched),
+                    `S${picked.season}E${ep.number} ${ep.watched ? 'unwatched' : 'watched'}`,
+                  );
                   const fresh = r?.detail.tv.seasons.flatMap((s: any) => s.episodes).find((x: Episode) => x.id === ep.id);
                   if (fresh) setPicked({ season: picked.season, ep: fresh });
                 }}
@@ -248,7 +257,9 @@ export function Heatmap({ d, act, onClose }: { d: EntryDetail; act: Act; onClose
                 <i className="swatch absent" /> No such episode
               </span>
             </div>
-            {d.tv!.ratings_attribution && <div className="source-line">{d.tv!.ratings_attribution}. These are community ratings, separate from your own rating.</div>}
+            {d.tv!.ratings_attribution && (
+              <div className="source-line">{d.tv!.ratings_attribution}. These are community ratings, separate from your own rating.</div>
+            )}
           </aside>
         </div>
       </div>

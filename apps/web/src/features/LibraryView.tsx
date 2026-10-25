@@ -23,10 +23,15 @@ export function LibraryView({ type, archived }: { type?: MediaType; archived?: b
   const [includeUnknown, setIncludeUnknown] = useState(true);
 
   useEffect(() => {
+    // `live` drops a slow older response (e.g. a previous status filter) so it can't overwrite a newer one.
+    let live = true;
     api
       .list({ type, archived, status: status || undefined })
-      .then(setRows)
-      .catch(() => setRows([]));
+      .then((r) => live && setRows(r))
+      .catch(() => live && setRows([]));
+    return () => {
+      live = false;
+    };
   }, [type, archived, status, version]);
 
   const platforms = useMemo(() => [...new Set((rows ?? []).map((r) => r.entry.play_platform).filter((p): p is string => !!p))].sort(), [rows]);
@@ -53,8 +58,12 @@ export function LibraryView({ type, archived }: { type?: MediaType; archived?: b
     if (sort === 'normal') sorted.sort((a, b) => num(a.normal_hours) - num(b.normal_hours));
     if (sort === 'platinum') sorted.sort((a, b) => num(a.platinum_hours?.max ?? a.platinum_hours?.min) - num(b.platinum_hours?.max ?? b.platinum_hours?.min));
     // Highest rated first; unknown last.
-    if (sort === 'imdb' && showReviews) sorted.sort((a, b) => num(a.ratings?.imdb ? -a.ratings.imdb.score : null) - num(b.ratings?.imdb ? -b.ratings.imdb.score : null));
-    if (sort === 'rt' && showReviews) sorted.sort((a, b) => num(a.ratings?.rt_audience ? -a.ratings.rt_audience.score : null) - num(b.ratings?.rt_audience ? -b.ratings.rt_audience.score : null));
+    if (sort === 'imdb' && showReviews)
+      sorted.sort((a, b) => num(a.ratings?.imdb ? -a.ratings.imdb.score : null) - num(b.ratings?.imdb ? -b.ratings.imdb.score : null));
+    if (sort === 'rt' && showReviews)
+      sorted.sort(
+        (a, b) => num(a.ratings?.rt_audience ? -a.ratings.rt_audience.score : null) - num(b.ratings?.rt_audience ? -b.ratings.rt_audience.score : null),
+      );
     if (sort === 'difficulty') sorted.sort((a, b) => num(a.difficulty?.max ?? a.difficulty?.min) - num(b.difficulty?.max ?? b.difficulty?.min));
     return sorted;
   }, [rows, text, platform, sort, maxPlat, minImdb, minRt, includeUnknown, showReviews]);
@@ -164,7 +173,9 @@ export function LibraryView({ type, archived }: { type?: MediaType; archived?: b
       {rows === null ? (
         <Empty>Loading…</Empty>
       ) : shown.length === 0 ? (
-        <Empty>{rows.length ? 'No entries match these filters.' : archived ? 'Nothing archived.' : `No ${TYPE_LABEL[type!].many.toLowerCase()} in the Pit yet.`}</Empty>
+        <Empty>
+          {rows.length ? 'No entries match these filters.' : archived ? 'Nothing archived.' : `No ${TYPE_LABEL[type!].many.toLowerCase()} in the Pit yet.`}
+        </Empty>
       ) : (
         <LibraryTable type={type} rows={shown} />
       )}
@@ -237,9 +248,27 @@ export function LibraryTable({ type, rows }: { type?: MediaType; rows: LibraryRo
               {type === 'GAME' && (
                 <>
                   <td>{fmtHours(r.normal_hours)}</td>
-                  <td>{r.platinum === 'NOT_APPLICABLE' ? <span className="muted" title="No PlayStation edition">N/A</span> : r.platinum === 'NO' ? <span className="muted">No Plat</span> : fmtRange(r.platinum_hours?.min, r.platinum_hours?.max)}</td>
-                  <td>{r.platinum === 'NOT_APPLICABLE' ? <span className="muted">—</span> : <DifficultyBar min={r.difficulty?.min ?? null} max={r.difficulty?.max ?? null} />}</td>
-                  <td className="sm" title={r.media.platforms.join(', ')}>{r.entry.play_platform ?? '—'}</td>
+                  <td>
+                    {r.platinum === 'NOT_APPLICABLE' ? (
+                      <span className="muted" title="No PlayStation edition">
+                        N/A
+                      </span>
+                    ) : r.platinum === 'NO' ? (
+                      <span className="muted">No Plat</span>
+                    ) : (
+                      fmtRange(r.platinum_hours?.min, r.platinum_hours?.max)
+                    )}
+                  </td>
+                  <td>
+                    {r.platinum === 'NOT_APPLICABLE' ? (
+                      <span className="muted">—</span>
+                    ) : (
+                      <DifficultyBar min={r.difficulty?.min ?? null} max={r.difficulty?.max ?? null} />
+                    )}
+                  </td>
+                  <td className="sm" title={r.media.platforms.join(', ')}>
+                    {r.entry.play_platform ?? '—'}
+                  </td>
                 </>
               )}
               {type === 'MOVIE' && (

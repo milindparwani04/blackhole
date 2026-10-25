@@ -24,7 +24,10 @@ const KEY_GUIDES: { id: GuideId; title: string; unlocks: string; vars: string[];
     unlocks: 'Game search with covers, platforms, genres and developer',
     vars: ['IGDB_CLIENT_ID', 'IGDB_CLIENT_SECRET'],
     steps: [
-      ['Sign in to the Twitch developer console (enable two-factor authentication on your Twitch account first — required)', 'https://dev.twitch.tv/console/apps'],
+      [
+        'Sign in to the Twitch developer console (enable two-factor authentication on your Twitch account first — required)',
+        'https://dev.twitch.tv/console/apps',
+      ],
       'Register Your Application → Name: anything (e.g. “Blackhole Local”), OAuth Redirect URL: http://localhost, Category: Application Integration, Client Type: Confidential → Create',
       'Open Manage on the new app: copy the Client ID, then click New Secret and copy the Client Secret',
       'Paste both into IGDB_CLIENT_ID and IGDB_CLIENT_SECRET in the .env file in the Blackhole folder, then save',
@@ -76,8 +79,8 @@ function ApiKeys({ providers, onChange }: { providers: any[]; onChange: () => vo
         </button>
       </div>
       <p className="muted sm">
-        TV (TVmaze) and books (Open Library) need no keys. SearXNG runs on this PC. Keys are stored only in <code>.env</code> on this computer, read by the local server, and never sent to the browser or included in
-        exports. Saving <code>.env</code> takes effect immediately — no restart needed.
+        TV (TVmaze) and books (Open Library) need no keys. SearXNG runs on this PC. Keys are stored only in <code>.env</code> on this computer, read by the
+        local server, and never sent to the browser or included in exports. Saving <code>.env</code> takes effect immediately — no restart needed.
       </p>
       <div className="key-grid">
         {KEY_GUIDES.map((g) => {
@@ -87,7 +90,9 @@ function ApiKeys({ providers, onChange }: { providers: any[]; onChange: () => vo
             <div key={g.id} className="key-card">
               <div className="row between">
                 <h2 className="h-section">{g.title}</h2>
-                <span className={`pill ${configured ? 'good' : 'warn'}`}>{g.id === 'SEARXNG' ? (configured ? 'RUNNING' : 'NOT RUNNING') : configured ? 'KEY SET' : 'NOT SET'}</span>
+                <span className={`pill ${configured ? 'good' : 'warn'}`}>
+                  {g.id === 'SEARXNG' ? (configured ? 'RUNNING' : 'NOT RUNNING') : configured ? 'KEY SET' : 'NOT SET'}
+                </span>
               </div>
               <div className="muted sm">{g.unlocks}</div>
               <ol className="steps">
@@ -104,7 +109,10 @@ function ApiKeys({ providers, onChange }: { providers: any[]; onChange: () => vo
                 ))}
               </ol>
               <div className="sm">
-                Variables: {g.vars.map((v) => <code key={v}>{v} </code>)}
+                Variables:{' '}
+                {g.vars.map((v) => (
+                  <code key={v}>{v} </code>
+                ))}
               </div>
               <div className="row gap wrap">
                 <button className="btn primary sm" disabled={!configured || r === 'testing'} onClick={() => test(g.id)}>
@@ -128,8 +136,14 @@ export function DataView() {
   const [busy, setBusy] = useState(false);
 
   const load = () => {
-    api.providers().then(setProviders).catch(() => {});
-    api.backups().then(setBackups).catch(() => {});
+    api
+      .providers()
+      .then(setProviders)
+      .catch(() => {});
+    api
+      .backups()
+      .then(setBackups)
+      .catch(() => {});
   };
   useEffect(load, []);
 
@@ -141,7 +155,10 @@ export function DataView() {
         <div className="panel-head">
           <h1 className="h-title">DATA &amp; BACKUPS</h1>
         </div>
-        <p className="muted sm">Your library lives in a single SQLite file on this computer. Backups are consistent snapshots in the data/backups folder. Exports are readable JSON and contain no API keys.</p>
+        <p className="muted sm">
+          Your library lives in a single SQLite file on this computer. Backups are consistent snapshots in the data/backups folder. Exports are readable JSON
+          and contain no API keys.
+        </p>
         <div className="row gap wrap">
           <button
             className="btn primary"
@@ -196,7 +213,10 @@ export function DataView() {
                   <td>{p.provider}</td>
                   <td className="sm">{p.capability}</td>
                   <td className="sm">
-                    <span className={`pill ${p.permission_status.startsWith('ENABLED') ? 'good' : 'warn'}`}>{p.permission_status.split(' ')[0].replace(':', '')}</span> <span className="muted">{p.permission_status.replace(/^\w+:?\s*/, '')}</span>
+                    <span className={`pill ${p.permission_status.startsWith('ENABLED') ? 'good' : 'warn'}`}>
+                      {p.permission_status.split(' ')[0].replace(':', '')}
+                    </span>{' '}
+                    <span className="muted">{p.permission_status.replace(/^\w+:?\s*/, '')}</span>
                   </td>
                   <td className="sm muted">{p.attribution ?? '—'}</td>
                 </tr>
@@ -205,7 +225,11 @@ export function DataView() {
           </table>
         </div>
         <p className="source-line">
-          TV data from <a href="https://www.tvmaze.com/" target="_blank" rel="noopener noreferrer">TVmaze</a> is licensed CC BY-SA 4.0. Book data from{' '}
+          TV data from{' '}
+          <a href="https://www.tvmaze.com/" target="_blank" rel="noopener noreferrer">
+            TVmaze
+          </a>{' '}
+          is licensed CC BY-SA 4.0. Book data from{' '}
           <a href="https://openlibrary.org/" target="_blank" rel="noopener noreferrer">
             Open Library
           </a>

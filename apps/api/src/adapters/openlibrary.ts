@@ -17,9 +17,7 @@ interface OlDoc {
 
 export async function searchBooks(q: string): Promise<SearchResult[]> {
   const fields = 'key,title,author_name,first_publish_year,cover_i,number_of_pages_median,edition_count,subject,isbn';
-  const data = await fetchJson<{ docs: OlDoc[] }>(
-    `https://openlibrary.org/search.json?q=${encodeURIComponent(q)}&limit=12&fields=${fields}`,
-  );
+  const data = await fetchJson<{ docs: OlDoc[] }>(`https://openlibrary.org/search.json?q=${encodeURIComponent(q)}&limit=12&fields=${fields}`);
   return data.docs
     .filter((d) => /^\/works\/OL\d+W$/.test(d.key))
     .map((d) => ({

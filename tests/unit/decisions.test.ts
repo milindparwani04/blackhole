@@ -104,7 +104,11 @@ describe('candidate matching', () => {
   });
   it('matches accented titles', () => {
     const c = evaluateCandidate(
-      { url: 'https://www.powerpyx.com/god-of-war-ragnarok-trophy-guide-roadmap/', title: 'God of War Ragnarok Trophy Guide & Roadmap', content: 'Estimated trophy difficulty: 4/10' },
+      {
+        url: 'https://www.powerpyx.com/god-of-war-ragnarok-trophy-guide-roadmap/',
+        title: 'God of War Ragnarok Trophy Guide & Roadmap',
+        content: 'Estimated trophy difficulty: 4/10',
+      },
       'God of War Ragnarök',
       'PS5',
     );
@@ -126,7 +130,15 @@ describe('trophy lookup jobs (D-02)', () => {
     const d = await settled(body.detail.entry.id);
     expect(d.game.trophy_job.status).toBe('FOUND');
     expect(d.game.trophies).toHaveLength(1);
-    expect(d.game.trophies[0]).toMatchObject({ platform: 'PS5', hours_min: 80, hours_max: 100, difficulty_max: 7, guide_url: POWERPYX.url, user_locked: false, platinum: 'YES' });
+    expect(d.game.trophies[0]).toMatchObject({
+      platform: 'PS5',
+      hours_min: 80,
+      hours_max: 100,
+      difficulty_max: 7,
+      guide_url: POWERPYX.url,
+      user_locked: false,
+      platinum: 'YES',
+    });
     expect(d.game.trophies[0].source).toMatch(/PowerPyx/);
     const rv = await call('POST', `/api/trophy-jobs/${d.game.trophy_job.id}/revert`);
     expect(rv.body.detail.game.trophies).toHaveLength(0);
@@ -148,7 +160,15 @@ describe('trophy lookup jobs (D-02)', () => {
   });
 
   it('reports throttled search engines as an error, not as "not found"', async () => {
-    vi.stubGlobal('fetch', async () => json({ results: [], unresponsive_engines: [['brave', 'Suspended: too many requests'], ['duckduckgo', 'CAPTCHA']] }));
+    vi.stubGlobal('fetch', async () =>
+      json({
+        results: [],
+        unresponsive_engines: [
+          ['brave', 'Suspended: too many requests'],
+          ['duckduckgo', 'CAPTCHA'],
+        ],
+      }),
+    );
     const { body } = await call('POST', '/api/library', { type: 'GAME', title: 'Elden Ring', platforms: ['PS5'] });
     const d = await settled(body.detail.entry.id);
     expect(d.game.trophy_job.status).toBe('ERROR');
@@ -199,7 +219,12 @@ describe('IGDB normal time (D-07)', () => {
       if (url.pathname === '/v4/game_time_to_beats') return json([{ normally: 205200, count: 41 }]);
       return json({ results: [] });
     });
-    const { body } = await call('POST', '/api/library', { type: 'GAME', title: 'Elden Ring', platforms: ['PC'], external: { provider: 'IGDB', external_id: '119133' } });
+    const { body } = await call('POST', '/api/library', {
+      type: 'GAME',
+      title: 'Elden Ring',
+      platforms: ['PC'],
+      external: { provider: 'IGDB', external_id: '119133' },
+    });
     const id = body.detail.entry.id;
     let d: any;
     for (let i = 0; i < 50 && !d?.game.times.length; i++) {
@@ -222,7 +247,14 @@ describe('TV completion (D-04)', () => {
     const m = body.detail.media.id;
     run(db, 'INSERT INTO tv_seasons VALUES (:id, :m, 1, 0)', { id: `${m}-s1`, m });
     const ep = (n: number, air: string) =>
-      run(db, `INSERT INTO tv_episodes VALUES (:id, :s, :m, 'TEST', :pid, :n, NULL, :air, 40, NULL)`, { id: crypto.randomUUID(), s: `${m}-s1`, m, pid: `${m}-${n}`, n, air });
+      run(db, `INSERT INTO tv_episodes VALUES (:id, :s, :m, 'TEST', :pid, :n, NULL, :air, 40, NULL)`, {
+        id: crypto.randomUUID(),
+        s: `${m}-s1`,
+        m,
+        pid: `${m}-${n}`,
+        n,
+        air,
+      });
     ep(1, '2026-10-01');
     ep(2, '2026-11-01');
     const d = (await call('GET', `/api/library/${id}`)).body;

@@ -16,7 +16,15 @@ export function Dashboard({ stats }: { stats: Stats | null }) {
   const [rows, setRows] = useState<LibraryRow[] | null>(null);
 
   useEffect(() => {
-    api.list().then(setRows).catch(() => setRows([]));
+    // `live` drops a slow older response so it can't overwrite a newer one.
+    let live = true;
+    api
+      .list()
+      .then((r) => live && setRows(r))
+      .catch(() => live && setRows([]));
+    return () => {
+      live = false;
+    };
   }, [version]);
 
   const total = rows?.length ?? 0;
@@ -43,7 +51,9 @@ export function Dashboard({ stats }: { stats: Stats | null }) {
       {rows && total === 0 ? (
         <section className="panel hero-empty">
           <h1>The Pit is empty.</h1>
-          <p className="muted">Add a game, movie, show or book to start. Everything is saved on this computer; nothing leaves it except provider searches you run.</p>
+          <p className="muted">
+            Add a game, movie, show or book to start. Everything is saved on this computer; nothing leaves it except provider searches you run.
+          </p>
           <div className="row gap">
             {TYPES.map((t) => (
               <button key={t} className="btn primary" onClick={() => openAdd(t)}>
@@ -141,7 +151,8 @@ function useFitRows(list: HTMLOListElement | null, max: number) {
 function metaLine(r: LibraryRow): string {
   const m = r.media;
   if (m.type === 'GAME') return [r.entry.play_platform, m.genres[0], m.year].filter(Boolean).join(' · ');
-  if (m.type === 'MOVIE') return [m.year, m.runtime_min ? `${Math.floor(m.runtime_min / 60)}h ${m.runtime_min % 60}m` : null, m.genres[0]].filter(Boolean).join(' · ');
+  if (m.type === 'MOVIE')
+    return [m.year, m.runtime_min ? `${Math.floor(m.runtime_min / 60)}h ${m.runtime_min % 60}m` : null, m.genres[0]].filter(Boolean).join(' · ');
   if (m.type === 'TV') return [r.tv?.seasons ? `${r.tv.seasons} season${r.tv.seasons === 1 ? '' : 's'}` : null, m.creator, m.year].filter(Boolean).join(' · ');
   return [m.creator, r.pages ? `${r.pages} pages` : null].filter(Boolean).join(' · ');
 }
@@ -163,7 +174,12 @@ function sideInfo(r: LibraryRow) {
     );
   }
   if (r.media.type === 'MOVIE') return <MovieRatingBadges ratings={r.ratings} />;
-  if (r.media.type === 'TV' && r.tv?.eligible) return <span className="sm">{r.tv.watched}/{r.tv.eligible} ep</span>;
+  if (r.media.type === 'TV' && r.tv?.eligible)
+    return (
+      <span className="sm">
+        {r.tv.watched}/{r.tv.eligible} ep
+      </span>
+    );
   if (r.media.type === 'BOOK' && r.pages && r.entry.current_page) return <span className="sm">{pct(r.entry.current_page, r.pages)}%</span>;
   if (r.entry.personal_rating != null) return <span className="my-rating">★ {r.entry.personal_rating}</span>;
   return null;

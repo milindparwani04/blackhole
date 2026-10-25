@@ -14,9 +14,16 @@ export function SettingsView() {
           <div className="setting">
             <div>
               <h2 className="h-section">REVIEWS</h2>
-              <div className="muted sm">IMDb and Rotten Tomatoes scores on movies, IMDb episode ratings on TV, and the rating filters. Off hides them everywhere; nothing is deleted.</div>
+              <div className="muted sm">
+                IMDb and Rotten Tomatoes scores on movies, IMDb episode ratings on TV, and the rating filters. Off hides them everywhere; nothing is deleted.
+              </div>
             </div>
-            <button className={`toggle setting-toggle ${s.showReviews ? 'on' : ''}`} role="switch" aria-checked={s.showReviews} onClick={() => setSettings({ showReviews: !s.showReviews })}>
+            <button
+              className={`toggle setting-toggle ${s.showReviews ? 'on' : ''}`}
+              role="switch"
+              aria-checked={s.showReviews}
+              onClick={() => setSettings({ showReviews: !s.showReviews })}
+            >
               <span className="box">{s.showReviews ? '✓' : ''}</span>
               {s.showReviews ? 'Showing reviews' : 'Reviews hidden'}
             </button>

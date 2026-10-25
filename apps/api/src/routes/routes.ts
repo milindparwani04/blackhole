@@ -8,7 +8,7 @@ import { AppError } from '../security/errors.js';
 import { searchBooks, OPENLIBRARY_ATTRIBUTION } from '../adapters/openlibrary.js';
 import { searchShows, syncEpisodes, TVMAZE_ATTRIBUTION } from '../adapters/tvmaze.js';
 import { linkImdbId, storeImdbId, syncImdbRatings } from '../adapters/imdb.js';
-import { previewMovieRatings, refreshMovieRatings } from '../services/movies.js';
+import { previewMovieRatings, refreshMovieRatings, refreshMovieRatingsInBackground } from '../services/movies.js';
 import { IGDB_ATTRIBUTION, searchGames, testIgdb } from '../adapters/igdb.js';
 import { movieDetail, searchMovies, testTmdb, TMDB_ATTRIBUTION } from '../adapters/tmdb.js';
 import { igdbConfigured, searxngUrl, tmdbConfigured } from '../config.js';
@@ -157,7 +157,11 @@ export function registerRoutes(app: FastifyInstance, db: DB, opts: { dataDir: st
       if (p.provider === 'SEARXNG') {
         return searxUp
           ? { ...p, configured: true, permission_status: `ENABLED (local instance at ${searxngUrl()?.origin})` }
-          : { ...p, configured: false, permission_status: `DISABLED: SearXNG not reachable at ${searxngUrl()?.origin ?? 'SEARXNG_URL (must be a loopback URL)'}` };
+          : {
+              ...p,
+              configured: false,
+              permission_status: `DISABLED: SearXNG not reachable at ${searxngUrl()?.origin ?? 'SEARXNG_URL (must be a loopback URL)'}`,
+            };
       }
       const configured = p.provider === 'IGDB' ? igdbConfigured() : p.provider === 'TMDB' ? tmdbConfigured() : null;
       if (configured === true) {
@@ -237,9 +241,9 @@ export function registerRoutes(app: FastifyInstance, db: DB, opts: { dataDir: st
       } catch (err) {
         enrichment_error = err instanceof AppError ? err.message : 'Movie details could not be fetched';
       }
-      // IMDb + RT audience usually take a few seconds; wait briefly so the new entry shows them, else they land later.
-      const ratings = refreshMovieRatings(db, opts.dataDir, mediaIdOf(entryId)).catch(() => undefined);
-      await Promise.race([ratings, new Promise((r) => setTimeout(r, 15_000))]);
+      // IMDb + RT audience take a few seconds (longer on first IMDb use), so they load in the background:
+      // the add returns at once and the detail reports `ratings_pending` until they land.
+      void refreshMovieRatingsInBackground(db, opts.dataDir, mediaIdOf(entryId));
     }
     if (!duplicate && b.type === 'GAME') enrichNewGame(db, entryId, { igdb: external?.provider === 'IGDB' });
     reply.code(duplicate ? 200 : 201);
@@ -278,7 +282,10 @@ export function registerRoutes(app: FastifyInstance, db: DB, opts: { dataDir: st
         external_id: z.string().max(40),
         title: z.string().min(1).max(500),
         year: z.number().int().nullable(),
-        cover_url: z.string().regex(/^https:\/\/(image\.tmdb\.org|covers\.openlibrary\.org)\//).nullable(),
+        cover_url: z
+          .string()
+          .regex(/^https:\/\/(image\.tmdb\.org|covers\.openlibrary\.org)\//)
+          .nullable(),
         synopsis: z.string().max(5000).nullable(),
         genres: z.array(z.string().max(100)).max(10),
       })
@@ -295,12 +302,21 @@ export function registerRoutes(app: FastifyInstance, db: DB, opts: { dataDir: st
         status: z.enum(STATUSES),
         completed_at: z.string().datetime().nullable(),
         pages: z.number().int().min(1).max(50_000).nullable(),
-        isbn: z.string().regex(/^[0-9X]{10}([0-9]{3})?$/i).nullable(),
-        source_url: z.string().regex(/^https:\/\/(letterboxd\.com\/film\/[\w-]+\/|boxd\.it\/\w+|www\.goodreads\.com\/book\/show\/\d+)$/).nullable(),
+        isbn: z
+          .string()
+          .regex(/^[0-9X]{10}([0-9]{3})?$/i)
+          .nullable(),
+        source_url: z
+          .string()
+          .regex(/^https:\/\/(letterboxd\.com\/film\/[\w-]+\/|boxd\.it\/\w+|www\.goodreads\.com\/book\/show\/\d+)$/)
+          .nullable(),
         match: Match.nullable(),
         in_pit: z.string().nullable(),
       })
-      .refine((i) => (i.type === 'MOVIE') === (i.source === 'LETTERBOXD') && (!i.match || (i.match.provider === 'TMDB') === (i.type === 'MOVIE')), 'Item type does not match its source');
+      .refine(
+        (i) => (i.type === 'MOVIE') === (i.source === 'LETTERBOXD') && (!i.match || (i.match.provider === 'TMDB') === (i.type === 'MOVIE')),
+        'Item type does not match its source',
+      );
     const b = parse(z.object({ items: z.array(Item).min(1).max(10_000) }), req.body);
     reply.code(202);
     return startImport(db, opts.dataDir, b.items);
@@ -318,9 +334,9 @@ export function registerRoutes(app: FastifyInstance, db: DB, opts: { dataDir: st
       Object.assign(changes, statusChanges(cur, b.status));
       parts.push(`status → ${b.status.replace('_', ' ').toLowerCase()}`);
     }
-    if (b.priority !== undefined && b.priority !== cur.priority) (changes.priority = b.priority), parts.push(`priority ${b.priority}`);
-    if (b.owned !== undefined && b.owned !== !!cur.owned) (changes.owned = b.owned), parts.push(b.owned ? 'owned' : 'not owned');
-    if (b.notes !== undefined && b.notes !== cur.notes) (changes.notes = b.notes), parts.push('notes edited');
+    if (b.priority !== undefined && b.priority !== cur.priority) ((changes.priority = b.priority), parts.push(`priority ${b.priority}`));
+    if (b.owned !== undefined && b.owned !== !!cur.owned) ((changes.owned = b.owned), parts.push(b.owned ? 'owned' : 'not owned'));
+    if (b.notes !== undefined && b.notes !== cur.notes) ((changes.notes = b.notes), parts.push('notes edited'));
     if (b.personal_rating !== undefined && b.personal_rating !== cur.personal_rating) {
       changes.personal_rating = b.personal_rating;
       parts.push(b.personal_rating == null ? 'rating cleared' : `my rating ${b.personal_rating}/10`);
@@ -333,9 +349,16 @@ export function registerRoutes(app: FastifyInstance, db: DB, opts: { dataDir: st
       if (b.current_page && cur.status === 'PLANNED' && !b.status) Object.assign(changes, statusChanges(cur, 'IN_PROGRESS'));
     }
     if (!parts.length) return result(id, null);
-    const eventId = mutateEntry(db, id, b.status ? 'STATUS' : 'EDIT', parts.join(', ').replace(/^./, (c) => c.toUpperCase()), changes, {
-      expectedVersion: b.version,
-    });
+    const eventId = mutateEntry(
+      db,
+      id,
+      b.status ? 'STATUS' : 'EDIT',
+      parts.join(', ').replace(/^./, (c) => c.toUpperCase()),
+      changes,
+      {
+        expectedVersion: b.version,
+      },
+    );
     return result(id, eventId);
   });
 

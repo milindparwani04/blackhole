@@ -39,7 +39,10 @@ describe('IGDB adapter', () => {
           summary: '<b>Rise</b>, Tarnished',
           cover: { image_id: 'co4jni' },
           genres: [{ name: 'Role-playing (RPG)' }],
-          platforms: [{ abbreviation: 'PS5', name: 'PlayStation 5' }, { abbreviation: 'PC', name: 'PC (Microsoft Windows)' }],
+          platforms: [
+            { abbreviation: 'PS5', name: 'PlayStation 5' },
+            { abbreviation: 'PC', name: 'PC (Microsoft Windows)' },
+          ],
           involved_companies: [{ developer: true, company: { name: 'FromSoftware' } }],
         },
       ]);
@@ -67,7 +70,7 @@ describe('IGDB adapter', () => {
     let rejected = false;
     vi.stubGlobal('fetch', async (url: URL) => {
       if (url.hostname === 'id.twitch.tv') return json({ access_token: `tok-${++tokens}`, expires_in: 3600 });
-      if (!rejected) return (rejected = true), json({ message: 'invalid token' }, 401);
+      if (!rejected) return ((rejected = true), json({ message: 'invalid token' }, 401));
       return json([]);
     });
     const r = await app.inject({ method: 'GET', url: '/api/search?type=GAME&q=halo', headers });
@@ -88,7 +91,18 @@ describe('TMDb adapter', () => {
     vi.stubGlobal('fetch', async (url: URL, init: RequestInit) => {
       expect((init.headers as Record<string, string>).Authorization).toBe('Bearer eyJ-long-v4-read-token');
       if (url.pathname === '/3/search/movie') {
-        return json({ results: [{ id: 329865, title: 'Arrival', release_date: '2016-11-10', overview: 'Linguist', poster_path: '/x2FJsf1ElAgr63Y3PNPtJrcmpoe.jpg', genre_ids: [18, 878] }] });
+        return json({
+          results: [
+            {
+              id: 329865,
+              title: 'Arrival',
+              release_date: '2016-11-10',
+              overview: 'Linguist',
+              poster_path: '/x2FJsf1ElAgr63Y3PNPtJrcmpoe.jpg',
+              genre_ids: [18, 878],
+            },
+          ],
+        });
       }
       return json({ id: 329865, runtime: 116, genres: [{ id: 18, name: 'Drama' }], credits: { crew: [{ job: 'Director', name: 'Denis Villeneuve' }] } });
     });
@@ -100,7 +114,14 @@ describe('TMDb adapter', () => {
       method: 'POST',
       url: '/api/library',
       headers,
-      payload: { type: 'MOVIE', title: r.title, year: r.year, genres: r.genres, cover_url: r.cover_url, external: { provider: 'TMDB', external_id: r.external_id } },
+      payload: {
+        type: 'MOVIE',
+        title: r.title,
+        year: r.year,
+        genres: r.genres,
+        cover_url: r.cover_url,
+        external: { provider: 'TMDB', external_id: r.external_id },
+      },
     });
     expect(add.json().detail.media).toMatchObject({ runtime_min: 116, creator: 'Denis Villeneuve', metadata_source: 'TMDB' });
   });
