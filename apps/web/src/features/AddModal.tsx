@@ -349,7 +349,7 @@ function ManualForm({ type, initialTitle, busy, onSubmit }: { type: MediaType; i
   const playPlatform = allPlatforms.includes(playOn) ? playOn : (allPlatforms[0] ?? null);
 
   return (
-    <details className="manual" open={type === 'GAME' || type === 'MOVIE'}>
+    <details className="manual">
       <summary className="h-sub">ADD MANUALLY</summary>
       <form
         className="stack"

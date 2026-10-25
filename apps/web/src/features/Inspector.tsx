@@ -511,22 +511,16 @@ function TrophyForm({ d, initial, onDone, act }: { d: EntryDetail; initial: Trop
   // D-05: values are always recorded for the version being played; regions are not tracked.
   const platform = d.game!.play_ps!;
   const [f, setF] = useState({
-    platinum: initial?.platinum ?? 'YES',
+    playthroughs: initial?.playthroughs?.toString() ?? '',
     hours_min: initial?.hours_min?.toString() ?? '',
     hours_max: initial?.hours_max?.toString() ?? '',
     difficulty_min: initial?.difficulty_min?.toString() ?? '',
     difficulty_max: initial?.difficulty_max?.toString() ?? '',
-    difficulty_text: initial?.difficulty_text ?? '',
-    playthroughs: initial?.playthroughs?.toString() ?? '',
-    online_required: initial?.online_required == null ? '' : initial.online_required ? 'yes' : 'no',
-    missables: initial?.missables == null ? '' : initial.missables ? 'yes' : 'no',
     guide_url: initial?.guide_url ?? '',
-    source: initial?.source ?? '',
     notes: initial?.notes ?? '',
   });
   const set = (k: keyof typeof f) => (e: { target: { value: string } }) => setF({ ...f, [k]: e.target.value });
   const n = (v: string) => (v === '' ? null : Number(v));
-  const yn = (v: string) => (v === '' ? null : v === 'yes');
   return (
     <form
       className="trophy-form"
@@ -537,17 +531,18 @@ function TrophyForm({ d, initial, onDone, act }: { d: EntryDetail; initial: Trop
             api.setTrophy(d.entry.id, {
               platform,
               region: 'ALL',
-              platinum: f.platinum,
+              // Not editable here: keep whatever is already recorded (unknown for a new stack).
+              platinum: initial?.platinum ?? 'UNKNOWN',
               hours_min: n(f.hours_min),
               hours_max: n(f.hours_max),
               difficulty_min: n(f.difficulty_min),
               difficulty_max: n(f.difficulty_max),
-              difficulty_text: f.difficulty_text || null,
+              difficulty_text: initial?.difficulty_text ?? null,
               playthroughs: n(f.playthroughs),
-              online_required: yn(f.online_required),
-              missables: yn(f.missables),
+              online_required: initial?.online_required ?? null,
+              missables: initial?.missables ?? null,
               guide_url: f.guide_url || null,
-              source: f.source || null,
+              source: initial?.source ?? null,
               notes: f.notes,
             }),
           `${platform} trophy values saved`,
@@ -556,19 +551,11 @@ function TrophyForm({ d, initial, onDone, act }: { d: EntryDetail; initial: Trop
       }}
     >
       <div className="muted sm">Saving marks these values as yours: lookups will propose changes but never overwrite them silently.</div>
+      <label>
+        Playthroughs
+        <input className="input" type="number" min="0" value={f.playthroughs} onChange={set('playthroughs')} />
+      </label>
       <div className="grid2">
-        <label>
-          Platinum
-          <select className="input" value={f.platinum} onChange={set('platinum')}>
-            <option value="YES">Has Platinum</option>
-            <option value="NO">No Platinum</option>
-            <option value="UNKNOWN">Unknown</option>
-          </select>
-        </label>
-        <label>
-          Playthroughs
-          <input className="input" type="number" min="0" value={f.playthroughs} onChange={set('playthroughs')} />
-        </label>
         <label>
           Hours min
           <input className="input" type="number" min="0" step="0.5" value={f.hours_min} onChange={set('hours_min')} />
@@ -585,31 +572,7 @@ function TrophyForm({ d, initial, onDone, act }: { d: EntryDetail; initial: Trop
           Difficulty max /10
           <input className="input" type="number" min="0" max="10" step="0.5" value={f.difficulty_max} onChange={set('difficulty_max')} />
         </label>
-        <label>
-          Online trophies
-          <select className="input" value={f.online_required} onChange={set('online_required')}>
-            <option value="">Unknown</option>
-            <option value="yes">Yes</option>
-            <option value="no">No</option>
-          </select>
-        </label>
-        <label>
-          Missables
-          <select className="input" value={f.missables} onChange={set('missables')}>
-            <option value="">Unknown</option>
-            <option value="yes">Yes</option>
-            <option value="no">No</option>
-          </select>
-        </label>
       </div>
-      <label>
-        Guide wording for difficulty
-        <input className="input" value={f.difficulty_text} onChange={set('difficulty_text')} placeholder="e.g. 3/10 with guide, 5/10 without" />
-      </label>
-      <label>
-        Source
-        <input className="input" value={f.source} onChange={set('source')} placeholder="PSNProfiles, PowerPyx…" />
-      </label>
       <label>
         Guide link
         <input className="input" value={f.guide_url} onChange={set('guide_url')} placeholder="https://" />
