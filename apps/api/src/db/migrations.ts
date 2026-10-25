@@ -199,4 +199,32 @@ INSERT INTO provider_registry VALUES
    'DISABLED: SearXNG not reachable', 'Guide values link back to the original guide', NULL, '2026-10-25');
 `,
   },
+  {
+    version: 3,
+    name: 'IMDb episode + movie ratings, Rotten Tomatoes audience score',
+    sql: `
+-- Title-level community ratings (movies). Absent = unknown; never stored as zero.
+CREATE TABLE media_ratings (
+  media_id TEXT NOT NULL REFERENCES media_items(id) ON DELETE CASCADE,
+  provider TEXT NOT NULL CHECK (provider IN ('IMDB','RT_AUDIENCE')),
+  score REAL NOT NULL,
+  scale REAL NOT NULL,
+  votes INTEGER,
+  label TEXT,
+  url TEXT,
+  fetched_at TEXT NOT NULL,
+  PRIMARY KEY (media_id, provider)
+);
+
+INSERT INTO provider_registry VALUES
+  ('ROTTEN_TOMATOES','Movie audience score (Popcornmeter)',
+   'ENABLED (owner-approved 2026-10-25: reads the one matching /m/ page; robots.txt honoured, bot checks never bypassed)',
+   'Audience score from Rotten Tomatoes (rottentomatoes.com)', NULL, '2026-10-25');
+INSERT INTO provider_registry VALUES
+  ('IMDB','TV episode ratings (heatmap; TVmaze only when IMDb has none for a show) and movie ratings',
+   'ENABLED (official non-commercial datasets, personal use; downloaded at most daily)',
+   'Information courtesy of IMDb (https://www.imdb.com). Used with permission.', NULL, '2026-10-25');
+UPDATE provider_registry SET capability = 'TV search, seasons, episodes; fallback episode ratings' WHERE provider = 'TVMAZE';
+`,
+  },
 ];

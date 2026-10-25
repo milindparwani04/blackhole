@@ -143,12 +143,28 @@ export interface BookEdition {
   pages_source: string | null;
 }
 
+/** A community rating for a whole title. IMDb is /10; Rotten Tomatoes audience is a % (/100). */
+export interface MediaRating {
+  score: number;
+  scale: number;
+  votes: number | null;
+  label: string | null;
+  url: string | null;
+  fetched_at: string;
+}
+
+export interface MovieRatings {
+  imdb: MediaRating | null;
+  rt_audience: MediaRating | null;
+}
+
 export interface EntryDetail {
   entry: LibraryEntry;
   media: MediaItem;
   game?: { times: TimeEstimate[]; trophies: TrophyGuide[]; platinum_applicable: boolean; play_ps: PsPlatform | null; trophy_job: TrophyJob | null; igdb_linked: boolean };
   tv?: { seasons: Season[]; progress: TvProgress; ratings_attribution: string | null };
   book?: { edition: BookEdition };
+  movie?: { ratings: MovieRatings; attribution: string[] };
   events: ProgressEvent[];
 }
 
@@ -162,6 +178,8 @@ export interface LibraryRow {
   platinum: PlatinumState | 'NOT_APPLICABLE' | null;
   tv: { eligible: number; watched: number; seasons: number } | null;
   pages: number | null;
+  /** Movies only. */
+  ratings: MovieRatings | null;
 }
 
 export interface SearchResult {

@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import type { MediaItem, Status } from '../../../../packages/shared/src/index';
+import type { MediaItem, MovieRatings, Status } from '../../../../packages/shared/src/index';
 import { STATUS_LABEL } from '../format';
 import { TypeIcon } from './Icons';
 
@@ -77,6 +77,24 @@ export function ConfirmButton({ children, confirm, onConfirm, className = 'btn g
     <button className={className} onClick={() => setArmed(true)} disabled={disabled}>
       {children}
     </button>
+  );
+}
+
+/** IMDb (/10) and Rotten Tomatoes audience (%) side by side. Missing values show a dash, never a guess. */
+export function MovieRatingBadges({ ratings }: { ratings: MovieRatings | null | undefined }) {
+  const imdb = ratings?.imdb;
+  const rt = ratings?.rt_audience;
+  const imdbTitle = imdb ? `IMDb ${imdb.score.toFixed(1)}/10${imdb.votes ? ` from ${imdb.votes.toLocaleString()} votes` : ''}` : 'IMDb rating unavailable';
+  const rtTitle = rt ? `Rotten Tomatoes audience score ${rt.score}%${rt.label ? ` (${rt.label})` : ''}` : 'Rotten Tomatoes audience score unavailable';
+  return (
+    <span className="rating-badges">
+      <span className={`rb${imdb ? '' : ' none'}`} title={imdbTitle} aria-label={imdbTitle}>
+        <b>IMDb</b> {imdb ? imdb.score.toFixed(1) : '—'}
+      </span>
+      <span className={`rb${rt ? '' : ' none'}`} title={rtTitle} aria-label={rtTitle}>
+        <b>🍿</b> {rt ? `${rt.score}%` : '—'}
+      </span>
+    </span>
   );
 }
 

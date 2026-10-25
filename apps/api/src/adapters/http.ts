@@ -1,8 +1,11 @@
+import fs from 'node:fs';
+import { Readable } from 'node:stream';
+import { pipeline } from 'node:stream/promises';
 import { AppError } from '../security/errors.js';
 import { searxngUrl } from '../config.js';
 
 // Adapters may only call these hosts (plus the local SearXNG origin). User/model-supplied URLs are never fetched.
-const ALLOWED_HOSTS = new Set(['api.tvmaze.com', 'openlibrary.org', 'id.twitch.tv', 'api.igdb.com', 'api.themoviedb.org']);
+const ALLOWED_HOSTS = new Set(['api.tvmaze.com', 'openlibrary.org', 'id.twitch.tv', 'api.igdb.com', 'api.themoviedb.org', 'datasets.imdbws.com']);
 
 const isAllowed = (u: URL) => (u.protocol === 'https:' && ALLOWED_HOSTS.has(u.hostname)) || u.origin === searxngUrl()?.origin;
 
@@ -45,6 +48,40 @@ export async function fetchJson<T>(url: string, { timeoutMs = 8000, retries = 1,
       throw new AppError('SOURCE_UNAVAILABLE', `${u.hostname} could not be reached (offline or timed out)`);
     }
   }
+}
+
+/**
+ * Streams a provider file to disk via a temp file + rename, so a failed download never leaves a partial file.
+ * With `ifModifiedSince`, an unchanged remote file returns false without downloading.
+ */
+export async function downloadFile(
+  url: string,
+  dest: string,
+  { ifModifiedSince, timeoutMs = 300_000 }: { ifModifiedSince?: Date; timeoutMs?: number } = {},
+): Promise<boolean> {
+  const u = new URL(url);
+  if (!isAllowed(u)) throw new AppError('PERMISSION_REQUIRED', `Host ${u.hostname} is not an approved provider`);
+  let res: Response;
+  try {
+    res = await fetch(u, {
+      signal: AbortSignal.timeout(timeoutMs),
+      headers: { 'User-Agent': 'Blackhole/0.1 (local personal media library)', ...(ifModifiedSince ? { 'If-Modified-Since': ifModifiedSince.toUTCString() } : {}) },
+      redirect: 'error',
+    });
+  } catch {
+    throw new AppError('SOURCE_UNAVAILABLE', `${u.hostname} could not be reached (offline or timed out)`);
+  }
+  if (res.status === 304) return false;
+  if (!res.ok || !res.body) throw new AppError('SOURCE_UNAVAILABLE', `${u.hostname} returned HTTP ${res.status}`);
+  const tmp = `${dest}.part`;
+  try {
+    await pipeline(Readable.fromWeb(res.body as any), fs.createWriteStream(tmp));
+    fs.renameSync(tmp, dest);
+  } catch {
+    fs.rmSync(tmp, { force: true });
+    throw new AppError('SOURCE_UNAVAILABLE', `Download from ${u.hostname} was interrupted`);
+  }
+  return true;
 }
 
 /** Provider text is untrusted: strip markup and collapse whitespace so it can only ever render as plain text. */

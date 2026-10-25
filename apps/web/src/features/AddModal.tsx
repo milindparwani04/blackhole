@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import { MEDIA_TYPES, type MediaType, type SearchResponse, type SearchResult } from '../../../../packages/shared/src/index';
+import { MEDIA_TYPES, type MediaType, type MovieRatings, type SearchResponse, type SearchResult } from '../../../../packages/shared/src/index';
 import { api, ApiError, type AddPayload } from '../api';
 import { useApp } from '../context';
-import { Cover } from '../components/Bits';
+import { Cover, MovieRatingBadges } from '../components/Bits';
 import { CloseIcon, SearchIcon, TypeIcon } from '../components/Icons';
 import { TYPE_LABEL } from '../format';
 
@@ -26,6 +26,19 @@ export function AddModal({ initialType, initialQuery, onClose }: { initialType: 
   const [picks, setPicks] = useState<Map<string, Pick>>(new Map());
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const qInput = useRef<HTMLInputElement>(null);
+  // IMDb + RT audience for ticked movies, fetched once per result (keyed like picks).
+  const [previews, setPreviews] = useState<Map<string, MovieRatings | 'loading' | 'error'>>(new Map());
+
+  useEffect(() => {
+    for (const [k, p] of picks) {
+      if (p.result.type !== 'MOVIE' || p.result.provider !== 'TMDB' || previews.has(k)) continue;
+      setPreviews((m) => new Map(m).set(k, 'loading'));
+      api
+        .previewMovieRatings(p.result.external_id)
+        .then((r) => setPreviews((m) => new Map(m).set(k, r)))
+        .catch(() => setPreviews((m) => new Map(m).set(k, 'error')));
+    }
+  }, [picks, previews]);
 
   useEffect(() => {
     const prev = document.activeElement as HTMLElement | null;
@@ -226,6 +239,17 @@ export function AddModal({ initialType, initialQuery, onClose }: { initialType: 
                         </span>
                         <span className="muted sm">{[r.creator, r.extra && r.extra !== r.creator ? r.extra : null, r.genres.slice(0, 2).join(', '), r.pages ? `~${r.pages} pages` : null].filter(Boolean).join(' · ')}</span>
                         {r.synopsis && <span className="sm clamp">{r.synopsis}</span>}
+                        {pick && previews.has(k) && (
+                          <span className="rating-preview sm">
+                            {previews.get(k) === 'loading' ? (
+                              <span className="muted">Fetching IMDb and Rotten Tomatoes ratings…</span>
+                            ) : previews.get(k) === 'error' ? (
+                              <span className="muted">Ratings unavailable right now</span>
+                            ) : (
+                              <MovieRatingBadges ratings={previews.get(k) as MovieRatings} />
+                            )}
+                          </span>
+                        )}
                       </span>
                     </button>
                     {r.already_in_pit && (

@@ -7,6 +7,8 @@ import { all, get, nowIso, run, tx, uuid, type DB } from '../db/db.js';
 import { AppError } from '../security/errors.js';
 import { searchBooks, OPENLIBRARY_ATTRIBUTION } from '../adapters/openlibrary.js';
 import { searchShows, syncEpisodes, TVMAZE_ATTRIBUTION } from '../adapters/tvmaze.js';
+import { linkImdbId, storeImdbId, syncImdbRatings } from '../adapters/imdb.js';
+import { previewMovieRatings, refreshMovieRatings } from '../services/movies.js';
 import { IGDB_ATTRIBUTION, searchGames, testIgdb } from '../adapters/igdb.js';
 import { movieDetail, searchMovies, testTmdb, TMDB_ATTRIBUTION } from '../adapters/tmdb.js';
 import { igdbConfigured, searxngUrl, tmdbConfigured } from '../config.js';
@@ -208,6 +210,10 @@ export function registerRoutes(app: FastifyInstance, db: DB, opts: { dataDir: st
       if (external) {
         try {
           await syncEpisodes(db, mediaId, external.external_id);
+          // IMDb ratings can take a while on first use (dataset download); they land in the background.
+          void linkImdbId(db, mediaId, external.external_id)
+            .then((imdb) => (imdb ? syncImdbRatings(db, opts.dataDir, [mediaId]) : null))
+            .catch(() => undefined);
         } catch (err) {
           enrichment_error = err instanceof AppError ? err.message : 'Episode import failed';
         }
@@ -225,9 +231,13 @@ export function registerRoutes(app: FastifyInstance, db: DB, opts: { dataDir: st
              genres = CASE WHEN genres = '[]' THEN :genres ELSE genres END, checked_at = :now WHERE id = :id`,
           { runtime: m.runtime_min, director: m.director, genres: JSON.stringify(m.genres), now: nowIso(), id: mediaIdOf(entryId) },
         );
+        storeImdbId(db, mediaIdOf(entryId), 'MOVIE', m.imdb_id);
       } catch (err) {
         enrichment_error = err instanceof AppError ? err.message : 'Movie details could not be fetched';
       }
+      // IMDb + RT audience usually take a few seconds; wait briefly so the new entry shows them, else they land later.
+      const ratings = refreshMovieRatings(db, opts.dataDir, mediaIdOf(entryId)).catch(() => undefined);
+      await Promise.race([ratings, new Promise((r) => setTimeout(r, 15_000))]);
     }
     if (!duplicate && b.type === 'GAME') enrichNewGame(db, entryId, { igdb: external?.provider === 'IGDB' });
     reply.code(duplicate ? 200 : 201);
@@ -465,7 +475,26 @@ export function registerRoutes(app: FastifyInstance, db: DB, opts: { dataDir: st
     const ext = get<{ external_id: string }>(db, `SELECT external_id FROM external_ids WHERE media_id = :m AND provider = 'TVMAZE'`, { m: mediaId });
     if (!ext) throw new AppError('VALIDATION_ERROR', 'This show was added manually and has no TVmaze link');
     await syncEpisodes(db, mediaId, ext.external_id);
+    try {
+      if (await linkImdbId(db, mediaId, ext.external_id)) await syncImdbRatings(db, opts.dataDir, [mediaId]);
+    } catch {
+      // IMDb unreachable: the episode refresh still stands and the last ratings are kept.
+    }
     return result(id, reconcileTv(db, id));
+  });
+
+  // ---------- movies ----------
+
+  app.post('/api/movies/:id/ratings/refresh', async (req) => {
+    const { id } = parse(idParam, req.params);
+    const { errors } = await refreshMovieRatings(db, opts.dataDir, mediaIdOf(id));
+    return { ...result(id, null), errors };
+  });
+
+  // Add dialog: ratings for a TMDb result before it is added. Nothing is stored.
+  app.get('/api/movies/preview-ratings', async (req) => {
+    const { tmdb } = parse(z.object({ tmdb: z.string().regex(/^\d{1,10}$/) }), req.query);
+    return previewMovieRatings(opts.dataDir, tmdb);
   });
 
   // ---------- books ----------

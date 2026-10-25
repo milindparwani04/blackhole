@@ -103,7 +103,7 @@ async function main() {
     extraOrigins: prod ? [] : ['http://localhost:5173', 'http://127.0.0.1:5173'],
   });
   await app.listen({ host, port });
-  scheduleTvMaintenance(db, (m) => app.log.info(m));
+  scheduleTvMaintenance(db, dataDir, (m) => app.log.info(m));
   console.log(`\n  BLACKHOLE v${VERSION}  →  http://${host}:${port}${prod ? '' : '  (API only; UI at http://localhost:5173)'}\n  data: ${dbFile}\n`);
 }
 

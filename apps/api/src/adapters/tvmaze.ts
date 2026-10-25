@@ -52,6 +52,13 @@ export async function searchShows(q: string): Promise<SearchResult[]> {
   }));
 }
 
+/** The show's IMDb ID as TVmaze records it (used to match IMDb episode ratings), or null. */
+export async function showImdbId(showId: string): Promise<string | null> {
+  const show = await fetchJson<{ externals?: { imdb?: string | null } }>(`${BASE}/shows/${encodeURIComponent(showId)}`);
+  const imdb = show.externals?.imdb;
+  return typeof imdb === 'string' && /^tt\d{7,10}$/.test(imdb) ? imdb : null;
+}
+
 /**
  * Imports/refreshes seasons and episodes. Existing episodes keep their IDs (and so their watch state);
  * new episodes are added. Ratings are TVmaze user ratings stored with provider + scale + fetch time.
