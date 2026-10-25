@@ -79,14 +79,14 @@ export function parseGuideText(raw: string): TrophyProposal {
     }
   }
 
-  const pt = /(?:minimum\s+(?:number\s+of\s+)?)?playthroughs?(?:\s+required)?\s*[:\-]?\s*(\d{1,2})\b/i.exec(text) ?? /\b(\d{1,2})\s+playthroughs?\b/i.exec(text);
+  const pt = /(?:minimum\s+(?:number\s+of\s+)?)?playthroughs?(?:\s+required)?\s*[:-]?\s*(\d{1,2})\b/i.exec(text) ?? /\b(\d{1,2})\s+playthroughs?\b/i.exec(text);
   if (pt) p.playthroughs = Number(pt[1]);
 
-  const online = /online\s+trophies\s*[:\-]?\s*(\d{1,3})/i.exec(text);
+  const online = /online\s+trophies\s*[:-]?\s*(\d{1,3})/i.exec(text);
   if (online) p.online_required = Number(online[1]) > 0;
   else if (/no\s+online\s+trophies|offline\s+only/i.test(text)) p.online_required = false;
 
-  const miss = /missable\s+trophies\s*[:\-]?\s*(\d{1,3})/i.exec(text) ?? /number\s+of\s+missable[^:0-9]{0,20}[:\-]?\s*(\d{1,3})/i.exec(text);
+  const miss = /missable\s+trophies\s*[:-]?\s*(\d{1,3})/i.exec(text) ?? /number\s+of\s+missable[^:0-9]{0,20}[:-]?\s*(\d{1,3})/i.exec(text);
   if (miss) p.missables = Number(miss[1]) > 0;
   else if (/no\s+missable/i.test(text)) p.missables = false;
 

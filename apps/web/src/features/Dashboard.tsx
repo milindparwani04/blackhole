@@ -16,7 +16,15 @@ export function Dashboard({ stats }: { stats: Stats | null }) {
   const [rows, setRows] = useState<LibraryRow[] | null>(null);
 
   useEffect(() => {
-    api.list().then(setRows).catch(() => setRows([]));
+    // `live` drops a slow older response so it can't overwrite a newer one.
+    let live = true;
+    api
+      .list()
+      .then((r) => live && setRows(r))
+      .catch(() => live && setRows([]));
+    return () => {
+      live = false;
+    };
   }, [version]);
 
   const total = rows?.length ?? 0;

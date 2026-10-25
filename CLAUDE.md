@@ -20,7 +20,11 @@ npm start / npm run serve / npm run dev   # see README
 npm test                                  # vitest, tests/unit/*.test.ts
 npm run typecheck                         # tsc, API + web
 npm run build                             # UI → apps/web/dist (served by the API in production)
+npm run lint                              # oxlint (.oxlintrc.json); warnings fail
+npm run format / npm run format:check     # Prettier on .ts/.tsx (app.css keeps its one-line-rule style)
 ```
+
+CI (`.github/workflows/ci.yml`) runs lint, format check, typecheck, tests and build on every push and PR. (oxlint rather than ESLint: typescript-eslint doesn't support TypeScript 7 yet.)
 
 Mutating API calls need `Origin: http://127.0.0.1:<port>` and `X-Blackhole: 1` headers (CSRF guard); every call needs `Host: 127.0.0.1:<port>`.
 

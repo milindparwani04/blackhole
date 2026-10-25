@@ -25,6 +25,7 @@ export function resetMovieRatingStateForTests() {
   rtCache.clear();
   rtTried.clear();
   imdbTried.clear();
+  pending.clear();
 }
 
 const toRating = (r: any): MediaRating => ({ score: r.score, scale: r.scale, votes: r.votes ?? null, label: r.label ?? null, url: r.url ?? null, fetched_at: r.fetched_at });
@@ -62,6 +63,25 @@ function saveRt(db: DB, mediaId: string, rt: RtAudience | null) {
     { m: mediaId, score: rt.score, label: rt.label, url: rt.url, now: nowIso() },
   );
 }
+
+// Background refreshes in flight, by media id, so the detail view can say ratings are on their way.
+const pending = new Map<string, Promise<void>>();
+
+/** Starts a ratings refresh without waiting for it (a new movie's ratings land a few seconds after it is added). */
+export function refreshMovieRatingsInBackground(db: DB, dataDir: string, mediaId: string): Promise<void> {
+  const running = pending.get(mediaId);
+  if (running) return running;
+  const p = refreshMovieRatings(db, dataDir, mediaId)
+    .then(() => undefined, () => undefined)
+    .finally(() => pending.delete(mediaId));
+  pending.set(mediaId, p);
+  return p;
+}
+
+export const movieRatingsPending = (mediaId: string) => pending.has(mediaId);
+
+/** Resolves when this movie's background refresh (if any) has finished. */
+export const movieRatingsSettled = (mediaId: string) => pending.get(mediaId) ?? Promise.resolve();
 
 /**
  * Links the movie's IMDb ID (via TMDb) and refreshes its IMDb rating and RT audience score. Each source fails on its

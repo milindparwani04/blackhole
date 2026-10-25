@@ -23,10 +23,15 @@ export function LibraryView({ type, archived }: { type?: MediaType; archived?: b
   const [includeUnknown, setIncludeUnknown] = useState(true);
 
   useEffect(() => {
+    // `live` drops a slow older response (e.g. a previous status filter) so it can't overwrite a newer one.
+    let live = true;
     api
       .list({ type, archived, status: status || undefined })
-      .then(setRows)
-      .catch(() => setRows([]));
+      .then((r) => live && setRows(r))
+      .catch(() => live && setRows([]));
+    return () => {
+      live = false;
+    };
   }, [type, archived, status, version]);
 
   const platforms = useMemo(() => [...new Set((rows ?? []).map((r) => r.entry.play_platform).filter((p): p is string => !!p))].sort(), [rows]);

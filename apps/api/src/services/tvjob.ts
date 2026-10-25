@@ -51,8 +51,10 @@ export async function runMaintenance(db: DB, dataDir: string, log: (msg: string)
   }
 }
 
-export function scheduleTvMaintenance(db: DB, dataDir: string, log?: (msg: string) => void) {
+/** Starts the hourly job (first run after 5 s). Returns a function that stops it. */
+export function scheduleTvMaintenance(db: DB, dataDir: string, log?: (msg: string) => void): () => void {
   const tick = () => void runMaintenance(db, dataDir, log).catch(() => undefined);
-  setTimeout(tick, 5_000);
-  return setInterval(tick, 60 * 60 * 1000);
+  const first = setTimeout(tick, 5_000);
+  const hourly = setInterval(tick, 60 * 60 * 1000);
+  return () => (clearTimeout(first), clearInterval(hourly));
 }

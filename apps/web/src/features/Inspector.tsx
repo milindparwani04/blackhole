@@ -8,6 +8,9 @@ import { fmtDate, fmtDateTime, fmtHours, fmtMinutes, fmtRange, pct, STATUS_LABEL
 import { useSettings } from '../settings';
 import { Heatmap } from './Heatmap';
 
+/** True while the server is still filling this entry in the background (trophy lookup, new movie's ratings). */
+const backgroundWorkRunning = (x: EntryDetail) => x.game?.trophy_job?.status === 'RUNNING' || !!x.movie?.ratings_pending;
+
 export function Inspector({ id }: { id: string }) {
   const { select, bump, notify, version } = useApp();
   const { showReviews } = useSettings();
@@ -15,28 +18,38 @@ export function Inspector({ id }: { id: string }) {
   const [err, setErr] = useState<string | null>(null);
 
   useEffect(() => {
+    let live = true;
     api
       .detail(id)
-      .then((x) => (setD(x), setErr(null)))
-      .catch((e: ApiError) => setErr(e.message));
+      .then((x) => live && (setD(x), setErr(null)))
+      .catch((e: ApiError) => live && setErr(e.message));
+    return () => {
+      live = false;
+    };
   }, [id, version]);
 
-  // A trophy lookup runs in the background after adding a game or switching version; poll until it settles.
-  const running = d?.game?.trophy_job?.status === 'RUNNING';
+  // Background work (a trophy lookup after adding a game or switching version, a new movie's ratings): poll until
+  // it settles, then refresh the lists so they show the result too.
+  const running = !!d && backgroundWorkRunning(d);
   useEffect(() => {
     if (!running) return;
+    let live = true;
     const t = setTimeout(
       () =>
         api
           .detail(id)
           .then((x) => {
+            if (!live) return;
             setD(x);
-            if (x.game?.trophy_job?.status !== 'RUNNING') bump();
+            if (!backgroundWorkRunning(x)) bump();
           })
           .catch(() => undefined),
       1500,
     );
-    return () => clearTimeout(t);
+    return () => {
+      live = false;
+      clearTimeout(t);
+    };
   }, [running, d, id, bump]);
 
   useEffect(() => {
@@ -602,6 +615,7 @@ function MovieRatingsPanel({ d, act }: { d: EntryDetail; act: Act }) {
   const { notify } = useApp();
   const [busy, setBusy] = useState(false);
   const { imdb, rt_audience: rt } = d.movie!.ratings;
+  const missing = d.movie!.ratings_pending ? <span className="muted">Loading…</span> : <span className="muted">Unavailable</span>;
   return (
     <section className="insp-section">
       <div className="row between">
@@ -632,7 +646,7 @@ function MovieRatingsPanel({ d, act }: { d: EntryDetail; act: Act }) {
               )}
             </>
           ) : (
-            <span className="muted">Unavailable</span>
+            missing
           )}
         </dd>
         <dt>RT audience</dt>
@@ -647,7 +661,7 @@ function MovieRatingsPanel({ d, act }: { d: EntryDetail; act: Act }) {
               )}
             </>
           ) : (
-            <span className="muted">Unavailable</span>
+            missing
           )}
         </dd>
       </dl>

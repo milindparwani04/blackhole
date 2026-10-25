@@ -103,8 +103,25 @@ async function main() {
     extraOrigins: prod ? [] : ['http://localhost:5173', 'http://127.0.0.1:5173'],
   });
   await app.listen({ host, port });
-  scheduleTvMaintenance(db, dataDir, (m) => app.log.info(m));
+  const stopMaintenance = scheduleTvMaintenance(db, dataDir, (m) => app.log.info(m));
   console.log(`\n  BLACKHOLE v${VERSION}  →  http://${host}:${port}${prod ? '' : '  (API only; UI at http://localhost:5173)'}\n  data: ${dbFile}\n`);
+
+  // Ctrl+C / service stop: finish in-flight requests, then close the DB so SQLite checkpoints its WAL.
+  // A second signal, or a shutdown that hangs for 10 s, exits immediately.
+  let stopping = false;
+  const shutdown = (signal: string) => {
+    if (stopping) process.exit(1);
+    stopping = true;
+    console.log(`\n  ${signal}: shutting down…`);
+    stopMaintenance();
+    setTimeout(() => process.exit(1), 10_000).unref();
+    app
+      .close()
+      .then(() => db.close())
+      .then(() => process.exit(0))
+      .catch((err) => (console.error(err), process.exit(1)));
+  };
+  for (const signal of ['SIGINT', 'SIGTERM'] as const) process.on(signal, () => shutdown(signal));
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

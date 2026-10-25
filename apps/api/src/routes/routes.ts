@@ -8,7 +8,7 @@ import { AppError } from '../security/errors.js';
 import { searchBooks, OPENLIBRARY_ATTRIBUTION } from '../adapters/openlibrary.js';
 import { searchShows, syncEpisodes, TVMAZE_ATTRIBUTION } from '../adapters/tvmaze.js';
 import { linkImdbId, storeImdbId, syncImdbRatings } from '../adapters/imdb.js';
-import { previewMovieRatings, refreshMovieRatings } from '../services/movies.js';
+import { previewMovieRatings, refreshMovieRatings, refreshMovieRatingsInBackground } from '../services/movies.js';
 import { IGDB_ATTRIBUTION, searchGames, testIgdb } from '../adapters/igdb.js';
 import { movieDetail, searchMovies, testTmdb, TMDB_ATTRIBUTION } from '../adapters/tmdb.js';
 import { igdbConfigured, searxngUrl, tmdbConfigured } from '../config.js';
@@ -237,9 +237,9 @@ export function registerRoutes(app: FastifyInstance, db: DB, opts: { dataDir: st
       } catch (err) {
         enrichment_error = err instanceof AppError ? err.message : 'Movie details could not be fetched';
       }
-      // IMDb + RT audience usually take a few seconds; wait briefly so the new entry shows them, else they land later.
-      const ratings = refreshMovieRatings(db, opts.dataDir, mediaIdOf(entryId)).catch(() => undefined);
-      await Promise.race([ratings, new Promise((r) => setTimeout(r, 15_000))]);
+      // IMDb + RT audience take a few seconds (longer on first IMDb use), so they load in the background:
+      // the add returns at once and the detail reports `ratings_pending` until they land.
+      void refreshMovieRatingsInBackground(db, opts.dataDir, mediaIdOf(entryId));
     }
     if (!duplicate && b.type === 'GAME') enrichNewGame(db, entryId, { igdb: external?.provider === 'IGDB' });
     reply.code(duplicate ? 200 : 201);

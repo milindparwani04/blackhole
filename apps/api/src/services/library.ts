@@ -15,7 +15,7 @@ import type {
   TvProgress,
 } from '../../../../packages/shared/src/index.js';
 import { all, get, nowIso, run, tx, uuid, type DB } from '../db/db.js';
-import { allMovieRatings, movieRatingAttribution, movieRatings } from './movies.js';
+import { allMovieRatings, movieRatingAttribution, movieRatings, movieRatingsPending } from './movies.js';
 import { AppError } from '../security/errors.js';
 import { latestJob } from './trophies.js';
 
@@ -587,7 +587,7 @@ export function loadDetail(db: DB, entryId: string): EntryDetail {
   if (media.type === 'TV') detail.tv = loadSeasons(db, media.id, entryId);
   if (media.type === 'MOVIE') {
     const ratings = movieRatings(db, media.id);
-    detail.movie = { ratings, attribution: movieRatingAttribution(ratings) };
+    detail.movie = { ratings, attribution: movieRatingAttribution(ratings), ratings_pending: movieRatingsPending(media.id) };
   }
   if (media.type === 'BOOK') {
     const b = get<any>(db, 'SELECT * FROM book_editions WHERE media_id = :id', { id: media.id });

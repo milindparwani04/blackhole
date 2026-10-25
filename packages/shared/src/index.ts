@@ -165,7 +165,8 @@ export interface EntryDetail {
   game?: { times: TimeEstimate[]; trophies: TrophyGuide[]; platinum_applicable: boolean; play_ps: PsPlatform | null; trophy_job: TrophyJob | null; igdb_linked: boolean };
   tv?: { seasons: Season[]; progress: TvProgress; ratings_attribution: string | null };
   book?: { edition: BookEdition };
-  movie?: { ratings: MovieRatings; attribution: string[] };
+  /** `ratings_pending`: a background IMDb / RT refresh is still running (e.g. just after adding). */
+  movie?: { ratings: MovieRatings; attribution: string[]; ratings_pending: boolean };
   events: ProgressEvent[];
 }
 

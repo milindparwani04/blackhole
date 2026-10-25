@@ -1,4 +1,4 @@
-# Typecheck, test and build every push and pull request. Tests use an in-memory DB and mocked
+# Lint, format check, typecheck, test and build every push and pull request. Tests use an in-memory DB and mocked
 # network, so CI needs no API keys and never touches real providers.
 name: CI
 
@@ -21,6 +21,8 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - run: npm run lint
+      - run: npm run format:check
       - run: npm run typecheck
       - run: npm test
       - run: npm run build

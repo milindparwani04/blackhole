@@ -51,15 +51,20 @@ export function AddModal({ initialType, initialQuery, onClose }: { initialType: 
     return () => (removeEventListener('keydown', onKey), prev?.focus());
   }, [onClose, progress]);
 
+  // Each search gets a number; only the latest one may show its results (switching type mid-search
+  // must not let the old type's results land late).
+  const searchSeq = useRef(0);
   async function search(t = type, query = q) {
     if (query.trim().length < 2) return;
+    const seq = ++searchSeq.current;
     setLoading(true);
     try {
-      setRes(await api.search(t, query.trim()));
+      const r = await api.search(t, query.trim());
+      if (seq === searchSeq.current) setRes(r);
     } catch (e) {
-      setRes({ provider: null, provider_status: 'ERROR', message: (e as ApiError).message, attribution: null, results: [] });
+      if (seq === searchSeq.current) setRes({ provider: null, provider_status: 'ERROR', message: (e as ApiError).message, attribution: null, results: [] });
     } finally {
-      setLoading(false);
+      if (seq === searchSeq.current) setLoading(false);
     }
   }
 
