@@ -113,3 +113,4 @@
 
 ## Update — 2026-10-25: GUI scale toggle removed, fixed at 125%
 - Owner asked to drop the GUI scale setting and make 125% the default. `settings.ts` now applies a fixed `GUI_SCALE = 1.25` (CSS `zoom` + `--gui-scale`, so the 100vh/100vw rules still divide it out); the GUI SCALE row is gone from Settings. A stored `guiScale` in localStorage is ignored. Browser zoom stays blocked. Typecheck, 75/75 tests and build clean.
+- Restarted the real server (:4317) so the owner sees the fixed 125% scale; backup `blackhole-2026-10-25T15-16-50-725Z.sqlite` first. (`POST /api/backup` needs a `{}` JSON body: no body gives 415, see the earlier 400 note.)
