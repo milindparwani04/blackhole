@@ -115,7 +115,7 @@ export function Inspector({ id }: { id: string }) {
         <SourceLine label="Metadata" source={media.metadata_source} url={media.source_url} checked={media.checked_at} />
 
         <section className="insp-section" aria-label="Status">
-          <div className="seg" role="radiogroup" aria-label="Status">
+          <div className="seg fill" role="radiogroup" aria-label="Status">
             {STATUSES.map((s) => (
               <button
                 key={s}

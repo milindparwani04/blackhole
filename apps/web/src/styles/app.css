@@ -186,6 +186,8 @@ code { font-family: var(--font); color: var(--accent-2); }
 .seg button:last-child { border-right: 0; }
 .seg button.on { background: var(--accent); color: var(--on-accent); }
 .seg.mini button { padding: 3px 8px; }
+.seg.fill { display: flex; }
+.seg.fill button { flex: 1 1 auto; }
 
 /* ---------- covers ---------- */
 .cover { object-fit: cover; border-radius: 2px; flex-shrink: 0; display: inline-grid; place-items: center; color: rgba(255, 255, 255, 0.5); background: var(--panel-2); }
