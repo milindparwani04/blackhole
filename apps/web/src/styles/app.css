@@ -465,8 +465,10 @@ details[open] > summary::before { content: '– '; }
   .main.fit .backlog-list button { flex: 1; min-height: 0; padding-block: 2px; }
   .main.fit .backlog-list .cover.sm { width: auto; max-height: 100%; aspect-ratio: 34 / 46; }
 } }
-/* Segmented controls that should hug their buttons instead of stretching across a flex column. */
-.seg.fit { align-self: flex-start; max-width: 100%; }
+/* Separate bordered buttons that wrap into rows with a gap (platform picker): no shared box, so wrapped rows keep even lines. */
+.chip-group { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip-group button { background: none; border: 1px solid var(--line-2); border-radius: var(--radius); padding: 6px 10px; font-size: 11px; color: var(--muted); }
+.chip-group button.on { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
 
 /* ---------- settings ---------- */
 .settings-list { display: flex; flex-direction: column; margin-top: 14px; }

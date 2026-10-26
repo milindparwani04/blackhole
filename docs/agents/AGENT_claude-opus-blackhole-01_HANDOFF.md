@@ -137,3 +137,8 @@
 - **Screenshots (owner ask):** added 8 PNGs in `docs/screenshots/` (dashboard, games, movies, TV, TV heatmap, books, Add dialog, Data & Sources) and a Screenshots section near the top of `README.md`. Taken from a copy of the owner's library (backup `blackhole-2026-10-26T04-38-27-866Z.sqlite`) served on :4318 with `DATA_DIR` in a temp folder, via puppeteer-core + Edge headless at 1920×1080, DPR 1.25. The real :4317 library wasn't touched. One TVmaze search ("Severance") was made for the Add dialog shot; nothing was added.
 - **Status buttons (owner screenshot "dropped button asymmetry"):** the inspector's Status segmented control left a gap to the right of "Dropped". It now uses `.seg.fill` (`display: flex`, buttons `flex: 1 1 auto`), so the buttons stretch to the panel's full width. Files: `apps/web/src/features/Inspector.tsx`, `apps/web/src/styles/app.css`.
 - Checks: lint, format check, typecheck, 79/79 tests. UI rebuilt; restart the :4317 server (or relaunch) to pick it up.
+
+## Update — 2026-10-26: platform picker as separate buttons
+
+- **Owner screenshot "platform buttons":** the inspector's Playing on picker was one bordered `.seg` box that wrapped onto a second row, leaving uneven lines and an empty cell. Owner asked for separate buttons in rows with a gap and no box around them. It now uses `.chip-group` (flex-wrap, 6px gap, each button has its own border; the selected one is filled). The `.seg.fit` rule it replaced had no other users and is gone. Files: `apps/web/src/features/Inspector.tsx`, `apps/web/src/styles/app.css`. `docs/screenshots/02-games.png` re-shot to show it.
+- Checks: lint, format check, typecheck, tests; checked visually on the :4318 copy at 1920×1080.
