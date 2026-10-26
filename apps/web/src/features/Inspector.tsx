@@ -223,7 +223,7 @@ function GamePanel({ d, act }: { d: EntryDetail; act: Act }) {
       <section className="insp-section">
         <h3 className="h-sub">PLAYING ON</h3>
         {media.platforms.length ? (
-          <div className="seg fit" role="radiogroup" aria-label="Platform you will play on">
+          <div className="chip-group" role="radiogroup" aria-label="Platform you will play on">
             {media.platforms.map((p) => (
               <button
                 key={p}
