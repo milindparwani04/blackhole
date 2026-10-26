@@ -131,3 +131,9 @@
 - Checks: lint 0, format clean, typecheck clean, 79/79 tests, build OK.
 
 - **Owner decision (2026-10-25):** after hearing why the "+ N more in the backlog" line was removed (it cost a row and misaligned panels; the header already has the count and VIEW ALL), the owner chose to keep it removed. Do not reintroduce it.
+
+## Update — 2026-10-26: README screenshots + status buttons fill the row
+
+- **Screenshots (owner ask):** added 8 PNGs in `docs/screenshots/` (dashboard, games, movies, TV, TV heatmap, books, Add dialog, Data & Sources) and a Screenshots section near the top of `README.md`. Taken from a copy of the owner's library (backup `blackhole-2026-10-26T04-38-27-866Z.sqlite`) served on :4318 with `DATA_DIR` in a temp folder, via puppeteer-core + Edge headless at 1920×1080, DPR 1.25. The real :4317 library wasn't touched. One TVmaze search ("Severance") was made for the Add dialog shot; nothing was added.
+- **Status buttons (owner screenshot "dropped button asymmetry"):** the inspector's Status segmented control left a gap to the right of "Dropped". It now uses `.seg.fill` (`display: flex`, buttons `flex: 1 1 auto`), so the buttons stretch to the panel's full width. Files: `apps/web/src/features/Inspector.tsx`, `apps/web/src/styles/app.css`.
+- Checks: lint, format check, typecheck, 79/79 tests. UI rebuilt; restart the :4317 server (or relaunch) to pick it up.

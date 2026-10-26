@@ -4,6 +4,18 @@ Local-first personal backlog for **games, movies, TV and books**. It runs entire
 
 Specs: `BLACKHOLE_BRD.md`, `BLACKHOLE_PRD.md`, `BLACKHOLE_THREE_AGENT_CONSOLIDATED_RESEARCH.md`. Owner decisions: `docs/decisions/OPEN_QUESTIONS.md`.
 
+## Screenshots
+
+![Backlog dashboard: totals per media type and the top of each backlog](docs/screenshots/01-dashboard.png)
+
+| | |
+|---|---|
+| ![Games list with playtime, Platinum hours and difficulty, plus the game inspector](docs/screenshots/02-games.png) **Games**: normal time, Platinum hours and difficulty, the platform you play on | ![Movies list with IMDb and Rotten Tomatoes scores, plus the movie inspector](docs/screenshots/03-movies.png) **Movies**: runtime, IMDb rating and RT audience score |
+| ![TV list with episode progress, plus per-episode watch toggles](docs/screenshots/04-tv.png) **TV**: per-episode watch tracking by season | ![Season by episode IMDb ratings heatmap](docs/screenshots/05-tv-heatmap.png) **TV ratings heatmap**: IMDb rating for every episode |
+| ![Books list with page progress, plus the reading inspector](docs/screenshots/06-books.png) **Books**: page progress against your edition | ![Add to the Pit dialog searching TVmaze](docs/screenshots/07-add.png) **Add to the Pit**: search a provider and pick results |
+
+![Data & Sources: API key status, setup steps and Letterboxd/Goodreads import](docs/screenshots/08-data-sources.png)
+
 > **Using an AI coding agent (Claude Code etc.)?** Point it at this folder and say *"set this project up"*. `CLAUDE.md` tells it how.
 
 ## Setup on a new computer
