@@ -142,3 +142,5 @@
 
 - **Owner screenshot "platform buttons":** the inspector's Playing on picker was one bordered `.seg` box that wrapped onto a second row, leaving uneven lines and an empty cell. Owner asked for separate buttons in rows with a gap and no box around them. It now uses `.chip-group` (flex-wrap, 6px gap, each button has its own border; the selected one is filled). The `.seg.fit` rule it replaced had no other users and is gone. Files: `apps/web/src/features/Inspector.tsx`, `apps/web/src/styles/app.css`. `docs/screenshots/02-games.png` re-shot to show it.
 - Checks: lint, format check, typecheck, tests; checked visually on the :4318 copy at 1920×1080.
+
+- Owner asked for the README heatmap screenshot to show True Detective instead of The Sopranos: `docs/screenshots/05-tv-heatmap.png` re-shot (all four seasons, full colour range). The Hollow Knight shot with the new platform buttons went in with PR #19.
