@@ -292,6 +292,15 @@ export interface ImportItem {
    * AniList's format (TV, MOVIE, OVA…), minutes per episode and the other-language title.
    */
   tv?: { episodes: number | null; watched: number; format: string | null; runtime_min: number | null; alt_title: string | null } | null;
+  /** Manga only (AniList → Books): format (MANGA, NOVEL, ONE_SHOT), totals once finished, the owner's progress, other-language title. */
+  manga?: {
+    format: string | null;
+    chapters: number | null;
+    volumes: number | null;
+    chapters_read: number;
+    volumes_read: number;
+    alt_title: string | null;
+  } | null;
   /** Entry id when this title is already in the Pit. */
   in_pit: string | null;
 }

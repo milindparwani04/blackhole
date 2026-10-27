@@ -6,7 +6,15 @@ import { parseGoodreadsCsv, stripSeries } from '../adapters/goodreads.js';
 import { movieDetail, searchMovies } from '../adapters/tmdb.js';
 import { searchBooks } from '../adapters/openlibrary.js';
 import { storeImdbId, syncImdbRatings } from '../adapters/imdb.js';
-import { anilistDate, anilistRating, anilistStatus, fetchAnilistMedia, type AnilistListEntry } from '../adapters/anilist.js';
+import {
+  anilistDate,
+  anilistRating,
+  anilistStatus,
+  fetchAnilistMedia,
+  type AnilistListEntry,
+  type AnilistMedia,
+  type AnilistType,
+} from '../adapters/anilist.js';
 import { tmdbConfigured } from '../config.js';
 import { addToPit, createManualSeasons } from './library.js';
 
@@ -97,22 +105,25 @@ function inPit(db: DB, type: MediaType, match: ImportItem['match'], titles: stri
     );
     if (hit) return hit.id;
   }
-  // Same type + title (+ year, for films) under any of its names counts as the same title.
+  // Same type + title (+ year, for films) under any of its names counts as the same title, unless the same provider
+  // already knows it under a different ID (e.g. a light novel and its manga adaptation share an English title).
   for (const title of titles) {
     const hit = get<{ id: string }>(
       db,
       `SELECT le.id FROM media_items m JOIN library_entries le ON le.media_id = m.id
-       WHERE m.type = :type AND lower(m.title) = lower(:title) AND (:type = 'BOOK' OR m.year IS :year OR m.year = :year)`,
-      { type, title, year },
+       WHERE m.type = :type AND lower(m.title) = lower(:title) AND (:type = 'BOOK' OR m.year IS :year OR m.year = :year)
+         AND NOT EXISTS (SELECT 1 FROM external_ids o WHERE o.media_id = m.id AND o.provider = :p AND o.external_id != :ext)`,
+      { type, title, year, p: match?.provider ?? null, ext: match?.external_id ?? null },
     );
     if (hit) return hit.id;
   }
   return null;
 }
-const pitTitles = (it: Pick<ImportItem, 'title' | 'match' | 'tv'>) => [
+const pitTitles = (it: Pick<ImportItem, 'title' | 'match' | 'tv' | 'manga'>) => [
   it.title,
   ...(it.match ? [it.match.title] : []),
   ...(it.tv?.alt_title ? [it.tv.alt_title] : []),
+  ...(it.manga?.alt_title ? [it.manga.alt_title] : []),
 ];
 
 // ---------- Letterboxd ----------
@@ -235,50 +246,87 @@ export function startGoodreadsPreview(db: DB, csv: string): ImportJob {
 const ANILIST_GAP_MS = () => (GAP_MS() === 0 ? 0 : 2500);
 
 /**
- * The anime list from AniList's GDPR data export. The export only holds AniList IDs, so titles, episode counts and
- * covers are looked up on AniList (50 per request). Everything goes to TV; the item is the AniList entry itself.
+ * The lists from AniList's GDPR data export: anime go to TV, manga to Books. The export only holds AniList IDs, so
+ * titles, counts and covers are looked up on AniList (50 per request). The item is the AniList entry itself.
  */
 export function startAnilistPreview(db: DB, entries: AnilistListEntry[]): ImportJob {
-  const byId = new Map<number, AnilistListEntry>();
-  for (const e of entries) if (anilistStatus(e.status) && !byId.has(e.series_id)) byId.set(e.series_id, e);
-  if (!byId.size) throw new AppError('VALIDATION_ERROR', 'The AniList export has no anime in it');
+  const lists: Record<AnilistType, Map<number, AnilistListEntry>> = { ANIME: new Map(), MANGA: new Map() };
+  for (const e of entries) {
+    const list = e.series_type === 0 ? lists.ANIME : e.series_type === 1 ? lists.MANGA : null;
+    if (list && anilistStatus(e.status) && !list.has(e.series_id)) list.set(e.series_id, e);
+  }
+  const total = lists.ANIME.size + lists.MANGA.size;
+  if (!total) throw new AppError('VALIDATION_ERROR', 'The AniList export has no anime or manga in it');
   return startJob('PREVIEW', async (job) => {
-    const ids = [...byId.keys()];
-    job.total = ids.length;
-    job.phase = 'Looking up your anime on AniList…';
-    const media = await fetchAnilistMedia(ids, ANILIST_GAP_MS(), (done) => (job.done = done));
+    job.total = total;
     const items: ImportItem[] = [];
-    for (const [id, e] of byId) {
-      const m = media.get(id);
-      if (!m) continue;
-      const status = anilistStatus(e.status)!;
-      const item: ImportItem = {
-        key: String(id),
-        source: 'ANILIST',
-        type: 'TV',
-        title: m.title,
-        year: m.year,
-        creator: m.studio,
-        rating: anilistRating(e.score),
-        status,
-        completed_at: status === 'COMPLETED' ? anilistDate(e.finished_on) : null,
-        started_at: anilistDate(e.started_on),
-        pages: null,
-        isbn: null,
-        source_url: `https://anilist.co/anime/${id}`,
-        match: { provider: 'ANILIST', external_id: String(id), title: m.title, year: m.year, cover_url: m.cover_url, synopsis: m.synopsis, genres: m.genres },
-        tv: { episodes: m.episodes, watched: Math.max(0, e.progress), format: m.format, runtime_min: m.runtime_min, alt_title: m.alt_title },
-        in_pit: null,
-      };
-      item.in_pit = inPit(db, 'TV', item.match, pitTitles(item), m.year);
-      items.push(item);
+    for (const type of ['ANIME', 'MANGA'] as const) {
+      const list = lists[type];
+      if (!list.size) continue;
+      job.phase = `Looking up your ${type.toLowerCase()} on AniList…`;
+      const before = job.done;
+      const media = await fetchAnilistMedia(type, [...list.keys()], ANILIST_GAP_MS(), (done) => (job.done = before + done));
+      for (const [id, e] of list) {
+        const m = media.get(id);
+        if (m) items.push(anilistItem(db, type, m, e));
+      }
     }
-    const missing = byId.size - items.length;
+    const missing = total - items.length;
     if (missing)
       job.notice = `${missing} entr${missing === 1 ? 'y' : 'ies'} in the export no longer exist on AniList, so ${missing === 1 ? 'it was' : 'they were'} left out.`;
     job.items = items;
     job.phase = 'Ready to review';
   });
+}
+
+function anilistItem(db: DB, type: AnilistType, m: AnilistMedia, e: AnilistListEntry): ImportItem {
+  const status = anilistStatus(e.status)!;
+  const anime = type === 'ANIME';
+  const item: ImportItem = {
+    // AniList IDs are shared across anime and manga, but the prefix keeps keys unambiguous anyway.
+    key: anime ? String(m.id) : `manga-${m.id}`,
+    source: 'ANILIST',
+    type: anime ? 'TV' : 'BOOK',
+    title: m.title,
+    year: m.year,
+    creator: m.creator,
+    rating: anilistRating(e.score),
+    status,
+    completed_at: status === 'COMPLETED' ? anilistDate(e.finished_on) : null,
+    started_at: anilistDate(e.started_on),
+    pages: null,
+    isbn: null,
+    source_url: `https://anilist.co/${anime ? 'anime' : 'manga'}/${m.id}`,
+    match: { provider: 'ANILIST', external_id: String(m.id), title: m.title, year: m.year, cover_url: m.cover_url, synopsis: m.synopsis, genres: m.genres },
+    tv: anime ? { episodes: m.episodes, watched: Math.max(0, e.progress), format: m.format, runtime_min: m.runtime_min, alt_title: m.alt_title } : null,
+    manga: anime
+      ? null
+      : {
+          format: m.format,
+          chapters: m.chapters,
+          volumes: m.volumes,
+          chapters_read: Math.max(0, e.progress),
+          volumes_read: Math.max(0, e.progress_volume),
+          alt_title: m.alt_title,
+        },
+    in_pit: null,
+  };
+  item.in_pit = inPit(db, item.type, item.match, pitTitles(item), m.year);
+  return item;
+}
+
+/**
+ * Books track pages, which manga on AniList don't have, so chapter/volume progress for a series not yet finished is
+ * kept as a line in the entry's notes rather than turned into a guessed page number.
+ */
+export function mangaProgressNote(status: ImportItem['status'], manga: NonNullable<ImportItem['manga']>): string {
+  if (status === 'COMPLETED' || (!manga.chapters_read && !manga.volumes_read)) return '';
+  const of = (n: number | null) => (n ? `/${n}` : '');
+  const parts = [
+    manga.chapters_read ? `chapter ${manga.chapters_read}${of(manga.chapters)}` : null,
+    manga.volumes_read ? `volume ${manga.volumes_read}${of(manga.volumes)}` : null,
+  ];
+  return `AniList progress: ${parts.filter(Boolean).join(', ')}`;
 }
 
 /**
@@ -331,7 +379,7 @@ export function startImport(db: DB, dataDir: string, items: ImportItem[]): Impor
             ? m.provider === 'TMDB'
               ? `https://www.themoviedb.org/movie/${m.external_id}`
               : m.provider === 'ANILIST'
-                ? `https://anilist.co/anime/${m.external_id}`
+                ? `https://anilist.co/${it.type === 'TV' ? 'anime' : 'manga'}/${m.external_id}`
                 : `https://openlibrary.org${m.external_id}`
             : it.source_url,
           external: m ? { provider: m.provider, object_type: it.type, external_id: m.external_id } : null,
@@ -342,8 +390,9 @@ export function startImport(db: DB, dataDir: string, items: ImportItem[]): Impor
         run(
           db,
           `UPDATE library_entries SET status = :status, personal_rating = :rating, completed_at = :completed, started_at = :started,
-             current_page = :page, updated_at = :now WHERE id = :id`,
+             current_page = :page, notes = :notes, updated_at = :now WHERE id = :id`,
           {
+            notes: it.manga ? mangaProgressNote(it.status, it.manga) : '',
             status: it.status,
             rating: it.rating,
             completed: it.status === 'COMPLETED' ? it.completed_at : null,

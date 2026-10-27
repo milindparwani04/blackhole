@@ -282,13 +282,15 @@ export function registerRoutes(app: FastifyInstance, db: DB, opts: { dataDir: st
     return startGoodreadsPreview(db, b.csv);
   });
 
-  // AniList GDPR export: the UI sends only the anime rows of `lists`, trimmed to these fields (the rest stays in the file).
+  // AniList GDPR export: the UI sends only the anime/manga rows of `lists`, trimmed to these fields (the rest stays in the file).
   app.post('/api/import/anilist/preview', { bodyLimit: 5 * 1024 * 1024 }, async (req, reply) => {
     const Entry = z.object({
       series_id: z.number().int().positive(),
+      series_type: z.number().int(),
       status: z.number().int(),
       score: z.number().min(0).max(100),
       progress: z.number().int().min(0).max(100_000),
+      progress_volume: z.number().int().min(0).max(10_000).default(0),
       started_on: z.number().int().min(0),
       finished_on: z.number().int().min(0),
     });
@@ -331,7 +333,7 @@ export function registerRoutes(app: FastifyInstance, db: DB, opts: { dataDir: st
           .nullable(),
         source_url: z
           .string()
-          .regex(/^https:\/\/(letterboxd\.com\/film\/[\w-]+\/|boxd\.it\/\w+|www\.goodreads\.com\/book\/show\/\d+|anilist\.co\/anime\/\d+)$/)
+          .regex(/^https:\/\/(letterboxd\.com\/film\/[\w-]+\/|boxd\.it\/\w+|www\.goodreads\.com\/book\/show\/\d+|anilist\.co\/(anime|manga)\/\d+)$/)
           .nullable(),
         match: Match.nullable(),
         tv: z
@@ -345,12 +347,27 @@ export function registerRoutes(app: FastifyInstance, db: DB, opts: { dataDir: st
           })
           .nullable()
           .optional(),
+        manga: z
+          .object({
+            format: z.string().max(40).nullable(),
+            chapters: z.number().int().min(0).max(100_000).nullable(),
+            volumes: z.number().int().min(0).max(10_000).nullable(),
+            chapters_read: z.number().int().min(0).max(100_000),
+            volumes_read: z.number().int().min(0).max(10_000),
+            alt_title: z.string().max(500).nullable(),
+          })
+          .nullable()
+          .optional(),
         in_pit: z.string().nullable(),
       })
       .refine((i) => {
         const provider = { LETTERBOXD: 'TMDB', GOODREADS: 'OPENLIBRARY', ANILIST: 'ANILIST' }[i.source];
-        const type = { LETTERBOXD: 'MOVIE', GOODREADS: 'BOOK', ANILIST: 'TV' }[i.source];
-        return i.type === type && (!i.match || i.match.provider === provider) && (i.type === 'TV') === !!i.tv;
+        // AniList anime → TV (with `tv`), manga → Books (with `manga`).
+        const types = { LETTERBOXD: ['MOVIE'], GOODREADS: ['BOOK'], ANILIST: ['TV', 'BOOK'] }[i.source];
+        const anilist = i.source === 'ANILIST';
+        return (
+          types.includes(i.type) && (!i.match || i.match.provider === provider) && (i.type === 'TV') === !!i.tv && (anilist && i.type === 'BOOK') === !!i.manga
+        );
       }, 'Item type does not match its source');
     const b = parse(z.object({ items: z.array(Item).min(1).max(10_000) }), req.body);
     reply.code(202);

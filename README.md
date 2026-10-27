@@ -124,7 +124,7 @@ Optional `.env` settings (see `config.example.env`): `PORT`, `DATA_DIR`, `DATABA
 | TV ratings heatmap: S×E grid, documented legend, Ratings / My progress modes, keyboard arrows, list fallback, episode drill-down | ✅ IMDb ratings only (official datasets); none shown when IMDb has none (D-03) |
 | Movies: TMDb search with runtime/director enrichment, Mark Watched, personal rating; IMDb rating + Rotten Tomatoes audience score in the Add dialog, lists and inspector; filter/sort by either (D-09) | ✅ search needs TMDb key |
 | Books: Open Library search, edition page count (labelled when it's a work median), page slider, Mark Finished | ✅ |
-| One-off imports (preview, untick, add): Letterboxd export or profile → Movies, Goodreads CSV → Books, AniList data export (`gdpr_data.json`) → TV with episode progress (D-06) | ✅ |
+| One-off imports (preview, untick, add): Letterboxd export or profile → Movies, Goodreads CSV → Books, AniList data export (`gdpr_data.json`): anime → TV with episode progress, manga → Books (D-06) | ✅ |
 | Spin wheel: SPIN on each backlog picks a random Planned/Paused title, then Open or Start it | ✅ |
 | Backup (SQLite snapshot) and JSON export | ✅ (restore UI not built) |
 | Security: loopback-only, Host allowlist (DNS rebinding), Origin + `X-Blackhole` header on mutations (CSRF), CSP, zod validation, parameterised SQL, provider hosts allowlisted, provider HTML stripped to text | ✅ |

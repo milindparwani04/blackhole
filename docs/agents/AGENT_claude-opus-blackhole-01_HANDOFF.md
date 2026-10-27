@@ -155,3 +155,12 @@
 - **Not done on the real library:** the owner runs the AniList import from the UI so they can untick things first (e.g. the 614 Planned, or the 123 films).
 - Tests: `tests/unit/anilist.test.ts` (6). Suite 85/85, lint, format check, typecheck, build clean.
 - **Owner ran the AniList import on the real library (2026-10-27)** from the UI and confirmed all the anime is in their list. The pre-restart backup is `blackhole-2026-10-27T16-25-51-787Z.sqlite` (taken before the import). The library data stays in git-ignored `data/` (public repo).
+
+## Update — 2026-10-27: AniList manga → Books
+- **Owner ask:** "add the manga to books as well". The same AniList import now reads both lists in `gdpr_data.json`: anime (`series_type` 0) → TV, as before, and manga (`series_type` 1) → Books. One file and one preview, with TV / Books filter tabs when both are present. Anime already imported show as "already in the Pit".
+- **Lookup:** `fetchAnilistMedia(type, …)` runs a separate GraphQL query per type, because AniList caps query complexity. Manga ask for `chapters volumes staff(perPage: 4)`. Creator is the first "Story…"/"Original…" staff credit (e.g. Story & Art: Naoki Urasawa); for anime it's still the main studio (`AnilistMedia.studio` → `creator`).
+- **Mapping:** same statuses/score/dates as anime (Reading → In progress, Rereading → Completed). AniList has no page counts, so pages stay empty (never guessed), and `current_page` stays empty. Chapter/volume progress for unfinished series goes into the entry's notes, e.g. "AniList progress: chapter 97/162, volume 11/18" (`mangaProgressNote`). Item key `manga-<id>`, source link `anilist.co/manga/<id>`, `ImportItem.manga` carries format/totals/progress. Formats: MANGA, NOVEL (light novels), ONE_SHOT.
+- **Bug found on staging and fixed:** "Three Days of Happiness" exists on AniList as a light novel (98361) and a manga (97553) with the same English title, so the title check skipped the second as a duplicate. `inPit`'s title match now ignores an entry the same provider already has under a different ID. This also applies to films and books.
+- **Staging (data-staging, owner's export):** 940 rows in 54–62 s. 825 anime all already in the Pit. 115 manga (109 MANGA, 3 NOVEL, 3 ONE_SHOT; 10 completed, 14 reading, 91 planned), all with a writer, all 115 added.
+- **Not done on the real library:** the owner runs it from Data & Sources → Import → AniList (the same file again; anime are skipped automatically).
+- Tests: `tests/unit/anilist.test.ts` now 8. Suite 88/88, lint, format check, typecheck, build clean.
