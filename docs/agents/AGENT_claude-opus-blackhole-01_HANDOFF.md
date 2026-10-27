@@ -154,3 +154,4 @@
 - **Staging check (data-staging on :4318, owner's real export):** 825 anime resolved in 49 s, all found (0 missing). 179 Completed, 18 In progress, 13 Paused, 614 Planned, 1 Dropped. Formats: 598 TV, 123 MOVIE, 52 ONA, 30 OVA, 17 SPECIAL, 5 TV_SHORT. Import: 825 added, 0 failed. Home still fits one screen at 1500×950 (scrollHeight 950 = innerHeight). Wheel checked visually with 627 TV and 87 movie slices.
 - **Not done on the real library:** the owner runs the AniList import from the UI so they can untick things first (e.g. the 614 Planned, or the 123 films).
 - Tests: `tests/unit/anilist.test.ts` (6). Suite 85/85, lint, format check, typecheck, build clean.
+- **Owner ran the AniList import on the real library (2026-10-27)** from the UI and confirmed all the anime is in their list. The pre-restart backup is `blackhole-2026-10-27T16-25-51-787Z.sqlite` (taken before the import). The library data stays in git-ignored `data/` (public repo).
