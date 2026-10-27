@@ -6,7 +6,7 @@ import { Cover, StatusPill } from '../components/Bits';
 import { STATUS_LABEL } from '../format';
 import { Progress } from './LibraryView';
 
-type Filter = 'ALL' | Status | 'NO_MATCH';
+type Filter = 'ALL' | Status | 'NO_MATCH' | 'TV' | 'BOOK';
 
 /** One-off imports from Letterboxd (export or profile link), Goodreads (CSV export) and AniList (data export). Nothing is written until "Add". */
 export function ImportPanel() {
@@ -62,7 +62,7 @@ export function ImportPanel() {
     }
   };
 
-  // AniList's GDPR export also holds the account's email, IP and messages: only the anime rows of `lists` are sent.
+  // AniList's GDPR export also holds the account's email, IP and messages: only the anime and manga rows of `lists` are sent.
   const readAnilist = async (f: File | undefined) => {
     if (anilistFile.current) anilistFile.current.value = '';
     if (!f) return;
@@ -72,19 +72,21 @@ export function ImportPanel() {
     } catch {
       return notify('That file isn’t valid JSON. Choose the gdpr_data.json from your AniList data download.', { error: true });
     }
-    if (!Array.isArray(lists)) return notify('No anime list found. Choose the gdpr_data.json from your AniList data download.', { error: true });
+    if (!Array.isArray(lists)) return notify('No lists found. Choose the gdpr_data.json from your AniList data download.', { error: true });
     const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : 0);
     const entries: AnilistEntry[] = lists
-      .filter((l) => l && l.series_type === 0 && typeof l.series_id === 'number')
+      .filter((l) => l && (l.series_type === 0 || l.series_type === 1) && typeof l.series_id === 'number')
       .map((l) => ({
         series_id: l.series_id,
+        series_type: l.series_type,
         status: num(l.status),
         score: num(l.score),
         progress: num(l.progress),
+        progress_volume: num(l.progress_volume),
         started_on: num(l.started_on),
         finished_on: num(l.finished_on),
       }));
-    if (!entries.length) return notify('The AniList export has no anime in it.', { error: true });
+    if (!entries.length) return notify('The AniList export has no anime or manga in it.', { error: true });
     start(() => api.anilistPreview(entries));
   };
 
@@ -112,10 +114,15 @@ export function ImportPanel() {
     start(() => api.letterboxdExport({ files }));
   };
 
-  const what = { BOOK: 'books', TV: 'shows', MOVIE: 'films' }[items?.[0]?.type ?? 'MOVIE'];
+  const types = new Set((items ?? []).map((i) => i.type));
+  const what = types.size > 1 ? 'titles' : { BOOK: 'books', TV: 'shows', MOVIE: 'films' }[items?.[0]?.type ?? 'MOVIE'];
   const filters = useMemo(() => {
     const l = items ?? [];
     const out: [Filter, string][] = [['ALL', `All ${l.length}`]];
+    // An AniList export mixes anime (TV) and manga (Books).
+    const shows = l.filter((i) => i.type === 'TV').length;
+    const books = l.filter((i) => i.type === 'BOOK').length;
+    if (shows && books) out.push(['TV', `TV ${shows}`], ['BOOK', `Books ${books}`]);
     for (const s of ['COMPLETED', 'IN_PROGRESS', 'PAUSED', 'PLANNED', 'DROPPED'] as Status[]) {
       const n = l.filter((i) => i.status === s).length;
       if (n) out.push([s, `${STATUS_LABEL[s]} ${n}`]);
@@ -124,7 +131,9 @@ export function ImportPanel() {
     if (unmatched) out.push(['NO_MATCH', `No match ${unmatched}`]);
     return out;
   }, [items]);
-  const shown = (items ?? []).filter((i) => filter === 'ALL' || (filter === 'NO_MATCH' ? !i.match : i.status === filter));
+  const shown = (items ?? []).filter(
+    (i) => filter === 'ALL' || (filter === 'NO_MATCH' ? !i.match : filter === 'TV' || filter === 'BOOK' ? i.type === filter : i.status === filter),
+  );
   const inPit = (items ?? []).filter((i) => i.in_pit).length;
   const setAll = (on: boolean) =>
     setPicked((p) => {
@@ -221,12 +230,12 @@ export function ImportPanel() {
         <div className="import-source">
           <h2 className="h-section">ANILIST</h2>
           <div className="muted sm">
-            Your anime list goes into TV. On AniList, request your data download from{' '}
+            Your anime list goes into TV and your manga into Books. On AniList, request your data download from{' '}
             <a href="https://anilist.co/settings/account" target="_blank" rel="noopener noreferrer">
               Settings → Account ↗
             </a>
-            , then choose the gdpr_data.json here. Only the anime list is read from it (manga is skipped). Watching becomes In progress, Planning becomes
-            Planned, Rewatching becomes Completed, and your episode progress is ticked off.
+            , then choose the gdpr_data.json here. Only your lists are read from it. Watching/Reading becomes In progress, Planning becomes Planned,
+            Rewatching/Rereading becomes Completed. Episode progress is ticked off; chapter progress goes into the book’s notes.
           </div>
           <div className="row gap">
             <input
@@ -303,6 +312,7 @@ export function ImportPanel() {
                         {[
                           i.creator,
                           i.tv && animeLine(i),
+                          i.manga && mangaLine(i),
                           i.in_pit
                             ? 'Already in the Pit'
                             : i.match
@@ -328,7 +338,7 @@ export function ImportPanel() {
             {items[0]?.source === 'LETTERBOXD'
               ? 'Film list and ratings from your Letterboxd profile. This product uses the TMDB API but is not endorsed or certified by TMDB.'
               : items[0]?.source === 'ANILIST'
-                ? 'List, scores and progress from your AniList export. Anime data from AniList (anilist.co).'
+                ? 'List, scores and progress from your AniList export. Anime and manga data from AniList (anilist.co).'
                 : 'Shelves and ratings from your Goodreads export. Book data from Open Library (openlibrary.org).'}
           </p>
         </div>
@@ -344,6 +354,21 @@ function animeLine(i: ImportItem): string {
   const seen = i.status === 'COMPLETED' && total ? total : tv.watched;
   const eps = total ? `${seen}/${total} ep` : seen ? `${seen} ep watched` : null;
   return [tv.format?.replace(/_/g, ' '), eps].filter(Boolean).join(' · ');
+}
+
+/** "MANGA · ch 45/162" — format and chapter progress for an AniList manga row. */
+function mangaLine(i: ImportItem): string {
+  const m = i.manga!;
+  const of = (n: number | null) => (n ? `/${n}` : '');
+  const read =
+    i.status === 'COMPLETED'
+      ? null
+      : m.chapters_read
+        ? `ch ${m.chapters_read}${of(m.chapters)}`
+        : m.volumes_read
+          ? `vol ${m.volumes_read}${of(m.volumes)}`
+          : null;
+  return [m.format?.replace(/_/g, ' '), read].filter(Boolean).join(' · ');
 }
 
 const normal = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, '');

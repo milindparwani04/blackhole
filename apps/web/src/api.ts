@@ -55,12 +55,14 @@ export interface AddPayload {
   external?: { provider: string; external_id: string } | null;
 }
 
-/** The fields of one AniList export list row that the import reads. */
+/** The fields of one AniList export list row (anime or manga) that the import reads. */
 export interface AnilistEntry {
   series_id: number;
+  series_type: number;
   status: number;
   score: number;
   progress: number;
+  progress_volume: number;
   started_on: number;
   finished_on: number;
 }
