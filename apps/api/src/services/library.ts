@@ -676,19 +676,22 @@ export function listEntries(db: DB, f: ListFilter): LibraryRow[] {
 }
 
 export function stats(db: DB) {
-  const rows = all<any>(
-    db,
-    `SELECT m.type, COUNT(*) AS total, SUM(CASE WHEN le.status = 'COMPLETED' THEN 1 ELSE 0 END) AS completed,
-            SUM(CASE WHEN le.status = 'IN_PROGRESS' THEN 1 ELSE 0 END) AS in_progress
-     FROM library_entries le JOIN media_items m ON m.id = le.media_id
-     WHERE le.archived_at IS NULL GROUP BY m.type`,
-  );
+  const count = (anilistOnly: boolean) => {
+    const rows = all<any>(
+      db,
+      `SELECT m.type, COUNT(*) AS total, SUM(CASE WHEN le.status = 'COMPLETED' THEN 1 ELSE 0 END) AS completed,
+              SUM(CASE WHEN le.status = 'IN_PROGRESS' THEN 1 ELSE 0 END) AS in_progress
+       FROM library_entries le JOIN media_items m ON m.id = le.media_id
+       WHERE le.archived_at IS NULL ${anilistOnly ? `AND m.metadata_source = 'ANILIST'` : ''} GROUP BY m.type`,
+    );
+    return Object.fromEntries(
+      (['GAME', 'MOVIE', 'TV', 'BOOK'] as const).map((t) => {
+        const r = rows.find((x) => x.type === t);
+        return [t, { total: r?.total ?? 0, completed: r?.completed ?? 0, in_progress: r?.in_progress ?? 0 }];
+      }),
+    );
+  };
   const archived = get<any>(db, 'SELECT COUNT(*) AS n FROM library_entries WHERE archived_at IS NOT NULL')?.n ?? 0;
-  const byType = Object.fromEntries(
-    (['GAME', 'MOVIE', 'TV', 'BOOK'] as const).map((t) => {
-      const r = rows.find((x) => x.type === t);
-      return [t, { total: r?.total ?? 0, completed: r?.completed ?? 0, in_progress: r?.in_progress ?? 0 }];
-    }),
-  );
-  return { byType, archived };
+  // `anilist`: the share of each type imported from AniList (anime, manga), so the UI can leave it out of totals.
+  return { byType: count(false), anilist: count(true), archived };
 }
