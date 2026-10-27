@@ -6,6 +6,7 @@ import { Cover, DifficultyBar, Empty, MovieRatingBadges, StatusPill } from '../c
 import { TypeIcon } from '../components/Icons';
 import { useSettings } from '../settings';
 import { fmtDate, fmtHours, fmtRange, pct, STATUS_LABEL, TYPE_LABEL } from '../format';
+import { SpinWheel } from './SpinWheel';
 
 type Sort = 'added' | 'title' | 'normal' | 'platinum' | 'difficulty' | 'year' | 'imdb' | 'rt';
 
@@ -21,6 +22,7 @@ export function LibraryView({ type, archived }: { type?: MediaType; archived?: b
   const [minImdb, setMinImdb] = useState('');
   const [minRt, setMinRt] = useState('');
   const [includeUnknown, setIncludeUnknown] = useState(true);
+  const [spin, setSpin] = useState(false);
 
   useEffect(() => {
     // `live` drops a slow older response (e.g. a previous status filter) so it can't overwrite a newer one.
@@ -85,10 +87,16 @@ export function LibraryView({ type, archived }: { type?: MediaType; archived?: b
           </div>
         </div>
         {!archived && (
-          <button className="btn primary" onClick={() => openAdd(type)}>
-            + ADD TO THE PIT
-          </button>
+          <div className="row gap">
+            <button className="btn ghost" onClick={() => setSpin(true)} title="Pick a random title from the Planned and Paused backlog">
+              SPIN
+            </button>
+            <button className="btn primary" onClick={() => openAdd(type)}>
+              + ADD TO THE PIT
+            </button>
+          </div>
         )}
+        {spin && type && <SpinWheel type={type} onClose={() => setSpin(false)} />}
       </div>
 
       <div className="filters" role="group" aria-label="Filters">

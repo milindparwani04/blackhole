@@ -259,12 +259,12 @@ export interface TrophyJob {
   created_at: string;
 }
 
-/** One film/book read from Letterboxd or a Goodreads export, with its provider match (if any). Nothing is stored until imported. */
+/** One film/book/show read from Letterboxd, a Goodreads export or an AniList export, with its provider match (if any). Nothing is stored until imported. */
 export interface ImportItem {
-  /** Unique within one preview (Letterboxd slug / Goodreads book id). */
+  /** Unique within one preview (Letterboxd slug / Goodreads book id / AniList media id). */
   key: string;
-  source: 'LETTERBOXD' | 'GOODREADS';
-  type: 'MOVIE' | 'BOOK';
+  source: 'LETTERBOXD' | 'GOODREADS' | 'ANILIST';
+  type: 'MOVIE' | 'BOOK' | 'TV';
   title: string;
   year: number | null;
   creator: string | null;
@@ -273,11 +273,13 @@ export interface ImportItem {
   status: Status;
   /** Date finished when the source records one (Goodreads "Date Read"), else null. Never guessed. */
   completed_at: string | null;
+  /** Date started when the source records one (AniList), else null. */
+  started_at?: string | null;
   pages: number | null;
   isbn: string | null;
   source_url: string | null;
   match: {
-    provider: 'TMDB' | 'OPENLIBRARY';
+    provider: 'TMDB' | 'OPENLIBRARY' | 'ANILIST';
     external_id: string;
     title: string;
     year: number | null;
@@ -285,6 +287,11 @@ export interface ImportItem {
     synopsis: string | null;
     genres: string[];
   } | null;
+  /**
+   * Shows only (AniList): episodes out so far (null when the source doesn't know), how many the owner had watched,
+   * AniList's format (TV, MOVIE, OVA…), minutes per episode and the other-language title.
+   */
+  tv?: { episodes: number | null; watched: number; format: string | null; runtime_min: number | null; alt_title: string | null } | null;
   /** Entry id when this title is already in the Pit. */
   in_pit: string | null;
 }

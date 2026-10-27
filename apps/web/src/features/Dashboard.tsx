@@ -1,11 +1,12 @@
 import { useEffect, useLayoutEffect, useState, type CSSProperties } from 'react';
 import type { LibraryRow, MediaType } from '../../../../packages/shared/src/index';
-import { backlogSlots, fitRowCount } from '../../../../packages/shared/src/backlog';
+import { backlogSlots, fitRowCount, spinPool } from '../../../../packages/shared/src/backlog';
 import { api, type Stats } from '../api';
 import { useApp } from '../context';
 import { Cover, DifficultyBar, Empty, MovieRatingBadges, Ring } from '../components/Bits';
 import { TypeIcon } from '../components/Icons';
 import { fmtHours, fmtRange, pct, TYPE_LABEL } from '../format';
+import { SpinWheel } from './SpinWheel';
 
 const TYPES: MediaType[] = ['GAME', 'MOVIE', 'TV', 'BOOK'];
 const SLUG: Record<MediaType, string> = { GAME: 'games', MOVIE: 'movies', TV: 'tv', BOOK: 'books' };
@@ -81,6 +82,8 @@ function BacklogPanel({ type, rows, loading }: { type: MediaType; rows: LibraryR
   const backlog = rows.filter((r) => ['PLANNED', 'PAUSED', 'IN_PROGRESS'].includes(r.entry.status)).length;
   const active = rows.filter((r) => r.entry.status === 'IN_PROGRESS').length;
   const done = rows.filter((r) => r.entry.status === 'COMPLETED').length;
+  const [spin, setSpin] = useState(false);
+  const spinnable = spinPool(rows).length;
 
   return (
     <div className="panel backlog-panel">
@@ -91,6 +94,14 @@ function BacklogPanel({ type, rows, loading }: { type: MediaType; rows: LibraryR
           <a className="link-more" href={`#/${SLUG[type]}`}>
             VIEW ALL →
           </a>
+          <button
+            className="btn ghost sm"
+            onClick={() => setSpin(true)}
+            disabled={!spinnable}
+            title={spinnable ? `Pick a random ${TYPE_LABEL[type].one.toLowerCase()} from the backlog` : 'Nothing planned or paused'}
+          >
+            SPIN
+          </button>
           <button className="btn primary sm" onClick={() => openAdd(type)} aria-label={`Add ${TYPE_LABEL[type].one.toLowerCase()} to the Pit`}>
             + ADD
           </button>
@@ -122,6 +133,7 @@ function BacklogPanel({ type, rows, loading }: { type: MediaType; rows: LibraryR
           ))}
         </ol>
       )}
+      {spin && <SpinWheel type={type} onClose={() => setSpin(false)} />}
     </div>
   );
 }

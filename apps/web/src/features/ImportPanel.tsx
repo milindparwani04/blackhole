@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ImportItem, ImportJob, Status } from '../../../../packages/shared/src/index';
-import { api, ApiError } from '../api';
+import { api, ApiError, type AnilistEntry } from '../api';
 import { useApp } from '../context';
 import { Cover, StatusPill } from '../components/Bits';
 import { STATUS_LABEL } from '../format';
@@ -8,7 +8,7 @@ import { Progress } from './LibraryView';
 
 type Filter = 'ALL' | Status | 'NO_MATCH';
 
-/** One-off imports from Letterboxd (profile link) and Goodreads (CSV export). Nothing is written until "Add". */
+/** One-off imports from Letterboxd (export or profile link), Goodreads (CSV export) and AniList (data export). Nothing is written until "Add". */
 export function ImportPanel() {
   const { notify, bump } = useApp();
   const [profile, setProfile] = useState('');
@@ -18,6 +18,7 @@ export function ImportPanel() {
   const [filter, setFilter] = useState<Filter>('ALL');
   const file = useRef<HTMLInputElement>(null);
   const lbFile = useRef<HTMLInputElement>(null);
+  const anilistFile = useRef<HTMLInputElement>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const running = !!job && !job.finished;
 
@@ -61,6 +62,32 @@ export function ImportPanel() {
     }
   };
 
+  // AniList's GDPR export also holds the account's email, IP and messages: only the anime rows of `lists` are sent.
+  const readAnilist = async (f: File | undefined) => {
+    if (anilistFile.current) anilistFile.current.value = '';
+    if (!f) return;
+    let lists: unknown;
+    try {
+      lists = JSON.parse(await f.text())?.lists;
+    } catch {
+      return notify('That file isn’t valid JSON. Choose the gdpr_data.json from your AniList data download.', { error: true });
+    }
+    if (!Array.isArray(lists)) return notify('No anime list found. Choose the gdpr_data.json from your AniList data download.', { error: true });
+    const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : 0);
+    const entries: AnilistEntry[] = lists
+      .filter((l) => l && l.series_type === 0 && typeof l.series_id === 'number')
+      .map((l) => ({
+        series_id: l.series_id,
+        status: num(l.status),
+        score: num(l.score),
+        progress: num(l.progress),
+        started_on: num(l.started_on),
+        finished_on: num(l.finished_on),
+      }));
+    if (!entries.length) return notify('The AniList export has no anime in it.', { error: true });
+    start(() => api.anilistPreview(entries));
+  };
+
   const readCsv = async (f: File | undefined) => {
     if (!f) return;
     const text = await f.text();
@@ -85,11 +112,11 @@ export function ImportPanel() {
     start(() => api.letterboxdExport({ files }));
   };
 
-  const what = items?.[0]?.type === 'BOOK' ? 'books' : 'films';
+  const what = { BOOK: 'books', TV: 'shows', MOVIE: 'films' }[items?.[0]?.type ?? 'MOVIE'];
   const filters = useMemo(() => {
     const l = items ?? [];
     const out: [Filter, string][] = [['ALL', `All ${l.length}`]];
-    for (const s of ['COMPLETED', 'IN_PROGRESS', 'PLANNED', 'DROPPED'] as Status[]) {
+    for (const s of ['COMPLETED', 'IN_PROGRESS', 'PAUSED', 'PLANNED', 'DROPPED'] as Status[]) {
       const n = l.filter((i) => i.status === s).length;
       if (n) out.push([s, `${STATUS_LABEL[s]} ${n}`]);
     }
@@ -111,7 +138,7 @@ export function ImportPanel() {
       n.has(key) ? n.delete(key) : n.add(key);
       return n;
     });
-  const provider = (i: ImportItem) => (i.match?.provider === 'TMDB' ? 'TMDb' : 'Open Library');
+  const provider = (i: ImportItem) => ({ TMDB: 'TMDb', OPENLIBRARY: 'Open Library', ANILIST: 'AniList' })[i.match?.provider ?? 'OPENLIBRARY'];
 
   return (
     <section className="panel">
@@ -119,8 +146,8 @@ export function ImportPanel() {
         <h1 className="h-title">IMPORT</h1>
       </div>
       <p className="muted sm">
-        A one-off copy of what you already track elsewhere. Your status and rating come across (Letterboxd ½★ = 1 point, Goodreads ★ = 2 points, out of 10).
-        Nothing is added until you review the list, and titles already in the Pit are left as they are.
+        A one-off copy of what you already track elsewhere. Your status and rating come across (Letterboxd ½★ = 1 point, Goodreads ★ = 2 points, AniList score ÷
+        10, out of 10). Nothing is added until you review the list, and titles already in the Pit are left as they are.
       </p>
       <div className="import-sources">
         <form
@@ -191,6 +218,31 @@ export function ImportPanel() {
             </label>
           </div>
         </div>
+        <div className="import-source">
+          <h2 className="h-section">ANILIST</h2>
+          <div className="muted sm">
+            Your anime list goes into TV. On AniList, request your data download from{' '}
+            <a href="https://anilist.co/settings/account" target="_blank" rel="noopener noreferrer">
+              Settings → Account ↗
+            </a>
+            , then choose the gdpr_data.json here. Only the anime list is read from it (manga is skipped). Watching becomes In progress, Planning becomes
+            Planned, Rewatching becomes Completed, and your episode progress is ticked off.
+          </div>
+          <div className="row gap">
+            <input
+              ref={anilistFile}
+              type="file"
+              accept=".json,application/json"
+              className="sr-only"
+              id="anilist-json"
+              onChange={(e) => readAnilist(e.target.files?.[0])}
+              disabled={running}
+            />
+            <label htmlFor="anilist-json" className={`btn primary ${running ? 'disabled' : ''}`} aria-disabled={running}>
+              Choose JSON…
+            </label>
+          </div>
+        </div>
       </div>
 
       {running && (
@@ -250,6 +302,7 @@ export function ImportPanel() {
                       <div className="muted sm">
                         {[
                           i.creator,
+                          i.tv && animeLine(i),
                           i.in_pit
                             ? 'Already in the Pit'
                             : i.match
@@ -274,12 +327,23 @@ export function ImportPanel() {
           <p className="source-line">
             {items[0]?.source === 'LETTERBOXD'
               ? 'Film list and ratings from your Letterboxd profile. This product uses the TMDB API but is not endorsed or certified by TMDB.'
-              : 'Shelves and ratings from your Goodreads export. Book data from Open Library (openlibrary.org).'}
+              : items[0]?.source === 'ANILIST'
+                ? 'List, scores and progress from your AniList export. Anime data from AniList (anilist.co).'
+                : 'Shelves and ratings from your Goodreads export. Book data from Open Library (openlibrary.org).'}
           </p>
         </div>
       )}
     </section>
   );
+}
+
+/** "TV · 12/24 ep" — format and episode progress for an AniList row. */
+function animeLine(i: ImportItem): string {
+  const tv = i.tv!;
+  const total = tv.episodes ? Math.max(tv.episodes, tv.watched) : null;
+  const seen = i.status === 'COMPLETED' && total ? total : tv.watched;
+  const eps = total ? `${seen}/${total} ep` : seen ? `${seen} ep watched` : null;
+  return [tv.format?.replace(/_/g, ' '), eps].filter(Boolean).join(' · ');
 }
 
 const normal = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, '');
