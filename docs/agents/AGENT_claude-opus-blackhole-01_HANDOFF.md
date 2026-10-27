@@ -165,3 +165,9 @@
 - **Not done on the real library:** the owner runs it from Data & Sources → Import → AniList (the same file again; anime are skipped automatically).
 - Tests: `tests/unit/anilist.test.ts` now 8. Suite 88/88, lint, format check, typecheck, build clean.
 - **Owner ran the manga import on the real library (2026-10-27)** and confirmed the manga are in Books. Backup taken before the restart: `blackhole-2026-10-27T16-43-32-439Z.sqlite`.
+
+## Update — 2026-10-27: "Include anime" / "Include manga" toggles
+- **Owner ask:** an "include anime" filter on TV shows and an "include manga" filter on Books. Anime and manga are the entries imported from AniList (`metadata_source = 'ANILIST'`); a show or book added another way never counts as anime or manga.
+- Two display settings in `settings.ts` (`includeAnime`, `includeManga`, default on, kept in localStorage like `showReviews`), plus a `useAnilistFilter()` hook. The checkboxes sit in the TV / Books list filter row. The setting applies to that type's list and header counts, its home backlog panel (rows and counts) and its spin wheel. The wheel's subtitle then says "· ANIME EXCLUDED" / "· MANGA EXCLUDED". The archive page and the sidebar/stat-card totals (server stats) still count everything.
+- Checked on staging in headless Edge: Books 167 → 52 with manga off, TV 825 → 0 (staging TV is all anime). Home still fits one screen (950/950). The setting survives a reload.
+- Checks: lint, format, typecheck, 88/88 tests, build.

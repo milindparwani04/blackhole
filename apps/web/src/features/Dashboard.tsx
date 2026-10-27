@@ -7,6 +7,7 @@ import { Cover, DifficultyBar, Empty, MovieRatingBadges, Ring } from '../compone
 import { TypeIcon } from '../components/Icons';
 import { fmtHours, fmtRange, pct, TYPE_LABEL } from '../format';
 import { SpinWheel } from './SpinWheel';
+import { useAnilistFilter } from '../settings';
 
 const TYPES: MediaType[] = ['GAME', 'MOVIE', 'TV', 'BOOK'];
 const SLUG: Record<MediaType, string> = { GAME: 'games', MOVIE: 'movies', TV: 'tv', BOOK: 'books' };
@@ -14,6 +15,7 @@ const SLOTS = 5;
 
 export function Dashboard({ stats }: { stats: Stats | null }) {
   const { version, openAdd } = useApp();
+  const anilistFilter = useAnilistFilter();
   const [rows, setRows] = useState<LibraryRow[] | null>(null);
 
   useEffect(() => {
@@ -66,7 +68,7 @@ export function Dashboard({ stats }: { stats: Stats | null }) {
       ) : (
         <section className="backlog-grid" aria-label="Backlogs">
           {TYPES.map((t) => (
-            <BacklogPanel key={t} type={t} rows={(rows ?? []).filter((r) => r.media.type === t)} loading={!rows} />
+            <BacklogPanel key={t} type={t} rows={(rows ?? []).filter((r) => r.media.type === t && anilistFilter(r))} loading={!rows} />
           ))}
         </section>
       )}

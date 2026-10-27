@@ -6,6 +6,7 @@ import { useApp } from '../context';
 import { Cover } from '../components/Bits';
 import { CloseIcon, TypeIcon } from '../components/Icons';
 import { TYPE_LABEL } from '../format';
+import { useAnilistFilter, useSettings } from '../settings';
 
 const SPIN_MS = 4800;
 // Above this many slices the names no longer fit on the wheel; the readout underneath names the slice instead.
@@ -25,6 +26,9 @@ const easeOut = (t: number) => 1 - Math.pow(1 - t, 4);
 /** Spins everything waiting in one type's backlog (Planned + Paused) and offers to start the winner. */
 export function SpinWheel({ type, onClose }: { type: MediaType; onClose: () => void }) {
   const { select, bump, notify } = useApp();
+  const anilistFilter = useAnilistFilter();
+  const { includeAnime, includeManga } = useSettings();
+  const excluded = type === 'TV' && !includeAnime ? 'ANIME' : type === 'BOOK' && !includeManga ? 'MANGA' : null;
   const [pool, setPool] = useState<LibraryRow[] | null>(null);
   const [rotation, setRotation] = useState(0);
   const [spinning, setSpinning] = useState(false);
@@ -36,13 +40,13 @@ export function SpinWheel({ type, onClose }: { type: MediaType; onClose: () => v
     let live = true;
     api
       .list({ type })
-      .then((r) => live && setPool(spinPool(r)))
+      .then((r) => live && setPool(spinPool(r.filter(anilistFilter))))
       .catch(() => live && setPool([]));
     return () => {
       live = false;
       cancelAnimationFrame(frame.current);
     };
-  }, [type]);
+  }, [type, anilistFilter]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
@@ -115,6 +119,7 @@ export function SpinWheel({ type, onClose }: { type: MediaType; onClose: () => v
             <>
               <div className="eyebrow muted">
                 {n} {n === 1 ? label.one.toUpperCase() : label.many.toUpperCase()} PLANNED OR PAUSED
+                {excluded && ` · ${excluded} EXCLUDED`}
               </div>
               <div className="spin-stage">
                 <span className="spin-pointer" aria-hidden="true" />

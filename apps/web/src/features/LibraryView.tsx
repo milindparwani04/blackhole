@@ -4,15 +4,20 @@ import { api } from '../api';
 import { useApp } from '../context';
 import { Cover, DifficultyBar, Empty, MovieRatingBadges, StatusPill } from '../components/Bits';
 import { TypeIcon } from '../components/Icons';
-import { useSettings } from '../settings';
+import { setSettings, useAnilistFilter, useSettings } from '../settings';
 import { fmtDate, fmtHours, fmtRange, pct, STATUS_LABEL, TYPE_LABEL } from '../format';
 import { SpinWheel } from './SpinWheel';
 
 type Sort = 'added' | 'title' | 'normal' | 'platinum' | 'difficulty' | 'year' | 'imdb' | 'rt';
 
+const keepAll = () => true;
+
 export function LibraryView({ type, archived }: { type?: MediaType; archived?: boolean }) {
   const { version, openAdd } = useApp();
-  const { showReviews } = useSettings();
+  const { showReviews, includeAnime, includeManga } = useSettings();
+  const anilist = useAnilistFilter();
+  // The archive has no include toggles, so it never hides anything.
+  const anilistFilter = archived ? keepAll : anilist;
   const [rows, setRows] = useState<LibraryRow[] | null>(null);
   const [status, setStatus] = useState<Status | ''>('');
   const [platform, setPlatform] = useState('');
@@ -39,7 +44,7 @@ export function LibraryView({ type, archived }: { type?: MediaType; archived?: b
   const platforms = useMemo(() => [...new Set((rows ?? []).map((r) => r.entry.play_platform).filter((p): p is string => !!p))].sort(), [rows]);
 
   const shown = useMemo(() => {
-    let list = rows ?? [];
+    let list = (rows ?? []).filter(anilistFilter);
     if (text.trim()) list = list.filter((r) => r.media.title.toLowerCase().includes(text.trim().toLowerCase()));
     if (platform) list = list.filter((r) => r.entry.play_platform === platform);
     if (maxPlat) {
@@ -68,9 +73,10 @@ export function LibraryView({ type, archived }: { type?: MediaType; archived?: b
       );
     if (sort === 'difficulty') sorted.sort((a, b) => num(a.difficulty?.max ?? a.difficulty?.min) - num(b.difficulty?.max ?? b.difficulty?.min));
     return sorted;
-  }, [rows, text, platform, sort, maxPlat, minImdb, minRt, includeUnknown, showReviews]);
+  }, [rows, anilistFilter, text, platform, sort, maxPlat, minImdb, minRt, includeUnknown, showReviews]);
 
-  const done = (rows ?? []).filter((r) => r.entry.status === 'COMPLETED').length;
+  const inScope = (rows ?? []).filter(anilistFilter);
+  const done = inScope.filter((r) => r.entry.status === 'COMPLETED').length;
   const title = archived ? 'ARCHIVE' : `${TYPE_LABEL[type!].one.toUpperCase()} BACKLOG`;
 
   return (
@@ -81,8 +87,8 @@ export function LibraryView({ type, archived }: { type?: MediaType; archived?: b
           <div>
             <h1 className="h-title">{title}</h1>
             <div className="eyebrow muted">
-              {rows?.length ?? 0} {archived ? 'ARCHIVED' : TYPE_LABEL[type!].many.toUpperCase()}
-              {!archived && ` · ${done} ${TYPE_LABEL[type!].done.toUpperCase()} · ${pct(done, rows?.length ?? 0)}%`}
+              {inScope.length} {archived ? 'ARCHIVED' : TYPE_LABEL[type!].many.toUpperCase()}
+              {!archived && ` · ${done} ${TYPE_LABEL[type!].done.toUpperCase()} · ${pct(done, inScope.length)}%`}
             </div>
           </div>
         </div>
@@ -156,6 +162,16 @@ export function LibraryView({ type, archived }: { type?: MediaType; archived?: b
               </label>
             )}
           </>
+        )}
+        {type === 'TV' && (
+          <label className="check" title="Anime are the shows imported from AniList">
+            <input type="checkbox" checked={includeAnime} onChange={(e) => setSettings({ includeAnime: e.target.checked })} /> Include anime
+          </label>
+        )}
+        {type === 'BOOK' && (
+          <label className="check" title="Manga are the books imported from AniList">
+            <input type="checkbox" checked={includeManga} onChange={(e) => setSettings({ includeManga: e.target.checked })} /> Include manga
+          </label>
         )}
         <span className="spacer" />
         <select className="input" value={sort} onChange={(e) => setSort(e.target.value as Sort)} aria-label="Sort">
