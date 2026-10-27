@@ -164,3 +164,4 @@
 - **Staging (data-staging, owner's export):** 940 rows in 54–62 s. 825 anime all already in the Pit. 115 manga (109 MANGA, 3 NOVEL, 3 ONE_SHOT; 10 completed, 14 reading, 91 planned), all with a writer, all 115 added.
 - **Not done on the real library:** the owner runs it from Data & Sources → Import → AniList (the same file again; anime are skipped automatically).
 - Tests: `tests/unit/anilist.test.ts` now 8. Suite 88/88, lint, format check, typecheck, build clean.
+- **Owner ran the manga import on the real library (2026-10-27)** and confirmed the manga are in Books. Backup taken before the restart: `blackhole-2026-10-27T16-43-32-439Z.sqlite`.
