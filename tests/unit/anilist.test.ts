@@ -265,6 +265,14 @@ describe('AniList import', () => {
 
     const again = await finish((await call('POST', '/api/import', { items: preview.items })).body.id);
     expect(again.result).toEqual({ added: 0, skipped: 3, failed: [] });
+
+    // Stats report the AniList share of each type, so the UI can leave anime/manga out of its totals.
+    await call('POST', '/api/library', { type: 'BOOK', title: 'Dune' });
+    const stats = (await call('GET', '/api/stats')).body;
+    expect(stats.byType.BOOK).toEqual({ total: 3, completed: 1, in_progress: 1 });
+    expect(stats.anilist.BOOK).toEqual({ total: 2, completed: 1, in_progress: 1 });
+    expect(stats.anilist.TV).toEqual({ total: 1, completed: 1, in_progress: 0 });
+    expect(stats.anilist.GAME).toEqual({ total: 0, completed: 0, in_progress: 0 });
   });
 
   it('adds two AniList works that share a title (a light novel and its manga) as separate books', async () => {

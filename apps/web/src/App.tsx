@@ -11,6 +11,7 @@ import { DataView } from './features/DataView';
 import { SettingsView } from './features/SettingsView';
 import { TYPE_LABEL } from './format';
 import { COMMANDS, matchCommands, parseSearch } from './searchCommand';
+import { useVisibleStats } from './settings';
 
 type View = { kind: 'dashboard' } | { kind: 'library'; type: MediaType } | { kind: 'archive' } | { kind: 'data' } | { kind: 'settings' };
 
@@ -40,7 +41,9 @@ export function App() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [add, setAdd] = useState<{ type: MediaType; query: string } | null>(null);
   const [toast, setToast] = useState<Toast | null>(null);
-  const [stats, setStats] = useState<Stats | null>(null);
+  const [allStats, setStats] = useState<Stats | null>(null);
+  // Sidebar and home totals leave out anime/manga while their include toggle is off.
+  const stats = useVisibleStats(allStats);
   const toastTimer = useRef<number>(undefined);
 
   useEffect(() => {

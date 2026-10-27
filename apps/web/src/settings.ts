@@ -1,5 +1,6 @@
-import { useCallback, useSyncExternalStore } from 'react';
+import { useCallback, useMemo, useSyncExternalStore } from 'react';
 import type { LibraryRow } from '../../../packages/shared/src/index';
+import type { Stats } from './api';
 
 /** Display preferences. Kept in this browser's localStorage: they change how the UI looks, not the library. */
 export interface Settings {
@@ -57,6 +58,25 @@ export function useAnilistFilter(): (r: LibraryRow) => boolean {
     (r: LibraryRow) => r.media.metadata_source !== 'ANILIST' || (r.media.type === 'TV' ? includeAnime : r.media.type === 'BOOK' ? includeManga : true),
     [includeAnime, includeManga],
   );
+}
+
+/** Library totals with anime/manga taken out while their include toggle is off (sidebar and home stat cards). */
+export function useVisibleStats(stats: Stats | null): Stats | null {
+  const { includeAnime, includeManga } = useSettings();
+  return useMemo(() => {
+    if (!stats || (includeAnime && includeManga)) return stats;
+    const byType = { ...stats.byType };
+    for (const [t, on] of [
+      ['TV', includeAnime],
+      ['BOOK', includeManga],
+    ] as const) {
+      if (on) continue;
+      const all = stats.byType[t];
+      const ani = stats.anilist[t];
+      byType[t] = { total: all.total - ani.total, completed: all.completed - ani.completed, in_progress: all.in_progress - ani.in_progress };
+    }
+    return { ...stats, byType };
+  }, [stats, includeAnime, includeManga]);
 }
 
 /** Browser zoom is disabled: Ctrl/⌘ + wheel, Ctrl/⌘ + plus/minus/0 and pinch do nothing. The fixed GUI scale is the only zoom. */

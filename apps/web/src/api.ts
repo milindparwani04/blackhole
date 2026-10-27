@@ -35,6 +35,8 @@ async function req<T>(method: string, url: string, body?: unknown): Promise<T> {
 
 export interface Stats {
   byType: Record<MediaType, { total: number; completed: number; in_progress: number }>;
+  /** The part of each type's counts imported from AniList (anime under TV, manga under Books). */
+  anilist: Record<MediaType, { total: number; completed: number; in_progress: number }>;
   archived: number;
 }
 
