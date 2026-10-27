@@ -6,12 +6,13 @@ import { parseGoodreadsCsv, stripSeries } from '../adapters/goodreads.js';
 import { movieDetail, searchMovies } from '../adapters/tmdb.js';
 import { searchBooks } from '../adapters/openlibrary.js';
 import { storeImdbId, syncImdbRatings } from '../adapters/imdb.js';
+import { anilistDate, anilistRating, anilistStatus, fetchAnilistMedia, type AnilistListEntry } from '../adapters/anilist.js';
 import { tmdbConfigured } from '../config.js';
-import { addToPit } from './library.js';
+import { addToPit, createManualSeasons } from './library.js';
 
 /**
  * One-off imports (owner, 25/10/2026; revises D-06): Letterboxd films/watchlist read from the public profile, and
- * Goodreads books from the owner's CSV export. Two background jobs the UI polls: PREVIEW reads the source and matches
+ * Goodreads books from the owner's CSV export; AniList anime (into TV) from its GDPR data export. Two background jobs the UI polls: PREVIEW reads the source and matches
  * each title (TMDb for films, Open Library for books) without writing anything; IMPORT adds what the owner kept ticked.
  * Status, rating and finish date come from the source; a missing finish date stays empty rather than guessed.
  * Titles already in the Pit are never changed.
@@ -78,7 +79,7 @@ export function pickBook(book: { title: string; author: string | null }, results
 }
 
 const toMatch = (r: SearchResult): NonNullable<ImportItem['match']> => ({
-  provider: r.provider as 'TMDB' | 'OPENLIBRARY',
+  provider: r.provider as 'TMDB' | 'OPENLIBRARY' | 'ANILIST',
   external_id: r.external_id,
   title: r.title,
   year: r.year,
@@ -108,7 +109,11 @@ function inPit(db: DB, type: MediaType, match: ImportItem['match'], titles: stri
   }
   return null;
 }
-const pitTitles = (it: Pick<ImportItem, 'title' | 'match'>) => [it.title, ...(it.match ? [it.match.title] : [])];
+const pitTitles = (it: Pick<ImportItem, 'title' | 'match' | 'tv'>) => [
+  it.title,
+  ...(it.match ? [it.match.title] : []),
+  ...(it.tv?.alt_title ? [it.tv.alt_title] : []),
+];
 
 // ---------- Letterboxd ----------
 
@@ -224,6 +229,77 @@ export function startGoodreadsPreview(db: DB, csv: string): ImportJob {
   });
 }
 
+// ---------- AniList ----------
+
+/** AniList allows 30 requests a minute; 2.5 s apart keeps a whole list well under that. */
+const ANILIST_GAP_MS = () => (GAP_MS() === 0 ? 0 : 2500);
+
+/**
+ * The anime list from AniList's GDPR data export. The export only holds AniList IDs, so titles, episode counts and
+ * covers are looked up on AniList (50 per request). Everything goes to TV; the item is the AniList entry itself.
+ */
+export function startAnilistPreview(db: DB, entries: AnilistListEntry[]): ImportJob {
+  const byId = new Map<number, AnilistListEntry>();
+  for (const e of entries) if (anilistStatus(e.status) && !byId.has(e.series_id)) byId.set(e.series_id, e);
+  if (!byId.size) throw new AppError('VALIDATION_ERROR', 'The AniList export has no anime in it');
+  return startJob('PREVIEW', async (job) => {
+    const ids = [...byId.keys()];
+    job.total = ids.length;
+    job.phase = 'Looking up your anime on AniList…';
+    const media = await fetchAnilistMedia(ids, ANILIST_GAP_MS(), (done) => (job.done = done));
+    const items: ImportItem[] = [];
+    for (const [id, e] of byId) {
+      const m = media.get(id);
+      if (!m) continue;
+      const status = anilistStatus(e.status)!;
+      const item: ImportItem = {
+        key: String(id),
+        source: 'ANILIST',
+        type: 'TV',
+        title: m.title,
+        year: m.year,
+        creator: m.studio,
+        rating: anilistRating(e.score),
+        status,
+        completed_at: status === 'COMPLETED' ? anilistDate(e.finished_on) : null,
+        started_at: anilistDate(e.started_on),
+        pages: null,
+        isbn: null,
+        source_url: `https://anilist.co/anime/${id}`,
+        match: { provider: 'ANILIST', external_id: String(id), title: m.title, year: m.year, cover_url: m.cover_url, synopsis: m.synopsis, genres: m.genres },
+        tv: { episodes: m.episodes, watched: Math.max(0, e.progress), format: m.format, runtime_min: m.runtime_min, alt_title: m.alt_title },
+        in_pit: null,
+      };
+      item.in_pit = inPit(db, 'TV', item.match, pitTitles(item), m.year);
+      items.push(item);
+    }
+    const missing = byId.size - items.length;
+    if (missing)
+      job.notice = `${missing} entr${missing === 1 ? 'y' : 'ies'} in the export no longer exist on AniList, so ${missing === 1 ? 'it was' : 'they were'} left out.`;
+    job.items = items;
+    job.phase = 'Ready to review';
+  });
+}
+
+/**
+ * Episodes for an imported anime: one season of AniList's count (aired-so-far for airing shows), stored like a manual
+ * show, then the first `watched` marked watched. Completed shows count as fully watched. When AniList doesn't know
+ * the count, the owner's own progress is the only number there is. Watch times aren't in the export, so they stay empty.
+ */
+function addAnimeEpisodes(db: DB, mediaId: string, entryId: string, status: ImportItem['status'], tv: NonNullable<ImportItem['tv']>) {
+  const count = Math.max(tv.episodes ?? 0, tv.watched);
+  if (!count) return;
+  createManualSeasons(db, mediaId, [count]);
+  const watched = status === 'COMPLETED' ? count : Math.min(tv.watched, count);
+  if (!watched) return;
+  run(
+    db,
+    `INSERT INTO episode_watch_states (entry_id, episode_id, watched, watched_at)
+     SELECT :entry, id, 1, NULL FROM tv_episodes WHERE media_id = :media AND number <= :n`,
+    { entry: entryId, media: mediaId, n: watched },
+  );
+}
+
 // ---------- import ----------
 
 export function startImport(db: DB, dataDir: string, items: ImportItem[]): ImportJob {
@@ -249,11 +325,14 @@ export function startImport(db: DB, dataDir: string, items: ImportItem[]): Impor
           cover_url: m?.cover_url ?? null,
           genres: m?.genres ?? [],
           creator: it.creator,
+          runtime_min: it.tv?.runtime_min ?? null,
           metadata_source: m?.provider ?? it.source,
           source_url: m
             ? m.provider === 'TMDB'
               ? `https://www.themoviedb.org/movie/${m.external_id}`
-              : `https://openlibrary.org${m.external_id}`
+              : m.provider === 'ANILIST'
+                ? `https://anilist.co/anime/${m.external_id}`
+                : `https://openlibrary.org${m.external_id}`
             : it.source_url,
           external: m ? { provider: m.provider, object_type: it.type, external_id: m.external_id } : null,
           pages: it.pages,
@@ -268,12 +347,16 @@ export function startImport(db: DB, dataDir: string, items: ImportItem[]): Impor
             status: it.status,
             rating: it.rating,
             completed: it.status === 'COMPLETED' ? it.completed_at : null,
-            started: it.status === 'IN_PROGRESS' ? nowIso() : null,
+            started: it.started_at ?? (it.status === 'IN_PROGRESS' ? nowIso() : null),
             page: book && it.status === 'COMPLETED' ? it.pages : null,
             now: nowIso(),
             id: entryId,
           },
         );
+        if (it.type === 'TV' && it.tv) {
+          const mediaId = get<{ media_id: string }>(db, 'SELECT media_id FROM library_entries WHERE id = :id', { id: entryId })!.media_id;
+          addAnimeEpisodes(db, mediaId, entryId, it.status, it.tv);
+        }
         result.added++;
         if (m?.provider === 'TMDB') {
           const mediaId = get<{ media_id: string }>(db, 'SELECT media_id FROM library_entries WHERE id = :id', { id: entryId })!.media_id;

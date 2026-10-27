@@ -14,7 +14,14 @@ import { movieDetail, searchMovies, testTmdb, TMDB_ATTRIBUTION } from '../adapte
 import { igdbConfigured, searxngUrl, tmdbConfigured } from '../config.js';
 import { searxReachable, testSearx } from '../adapters/searxng.js';
 import { applyJob, revertJob, runJob } from '../services/trophies.js';
-import { getImportJob, startGoodreadsPreview, startImport, startLetterboxdExportPreview, startLetterboxdPreview } from '../services/imports.js';
+import {
+  getImportJob,
+  startAnilistPreview,
+  startGoodreadsPreview,
+  startImport,
+  startLetterboxdExportPreview,
+  startLetterboxdPreview,
+} from '../services/imports.js';
 import { letterboxdUser } from '../adapters/letterboxd.js';
 import { enrichNewGame, queueTrophyLookup, refreshIgdbTime } from '../services/games.js';
 import {
@@ -275,32 +282,48 @@ export function registerRoutes(app: FastifyInstance, db: DB, opts: { dataDir: st
     return startGoodreadsPreview(db, b.csv);
   });
 
+  // AniList GDPR export: the UI sends only the anime rows of `lists`, trimmed to these fields (the rest stays in the file).
+  app.post('/api/import/anilist/preview', { bodyLimit: 5 * 1024 * 1024 }, async (req, reply) => {
+    const Entry = z.object({
+      series_id: z.number().int().positive(),
+      status: z.number().int(),
+      score: z.number().min(0).max(100),
+      progress: z.number().int().min(0).max(100_000),
+      started_on: z.number().int().min(0),
+      finished_on: z.number().int().min(0),
+    });
+    const b = parse(z.object({ entries: z.array(Entry).min(1).max(20_000) }), req.body);
+    reply.code(202);
+    return startAnilistPreview(db, b.entries);
+  });
+
   app.post('/api/import', { bodyLimit: 10 * 1024 * 1024 }, async (req, reply) => {
     const Match = z
       .object({
-        provider: z.enum(['TMDB', 'OPENLIBRARY']),
+        provider: z.enum(['TMDB', 'OPENLIBRARY', 'ANILIST']),
         external_id: z.string().max(40),
         title: z.string().min(1).max(500),
         year: z.number().int().nullable(),
         cover_url: z
           .string()
-          .regex(/^https:\/\/(image\.tmdb\.org|covers\.openlibrary\.org)\//)
+          .regex(/^https:\/\/(image\.tmdb\.org|covers\.openlibrary\.org|s4\.anilist\.co)\//)
           .nullable(),
         synopsis: z.string().max(5000).nullable(),
         genres: z.array(z.string().max(100)).max(10),
       })
-      .refine((m) => (m.provider === 'TMDB' ? /^\d+$/ : /^\/works\/OL\d+W$/).test(m.external_id), 'Invalid provider id');
+      .refine((m) => (m.provider === 'OPENLIBRARY' ? /^\/works\/OL\d+W$/ : /^\d+$/).test(m.external_id), 'Invalid provider id');
     const Item = z
       .object({
         key: z.string().max(200),
-        source: z.enum(['LETTERBOXD', 'GOODREADS']),
-        type: z.enum(['MOVIE', 'BOOK']),
+        source: z.enum(['LETTERBOXD', 'GOODREADS', 'ANILIST']),
+        type: z.enum(['MOVIE', 'BOOK', 'TV']),
         title: z.string().min(1).max(500),
         year: z.number().int().min(-3000).max(2100).nullable(),
         creator: z.string().max(300).nullable(),
         rating: z.number().int().min(1).max(10).nullable(),
         status: z.enum(STATUSES),
         completed_at: z.string().datetime().nullable(),
+        started_at: z.string().datetime().nullable().optional(),
         pages: z.number().int().min(1).max(50_000).nullable(),
         isbn: z
           .string()
@@ -308,15 +331,27 @@ export function registerRoutes(app: FastifyInstance, db: DB, opts: { dataDir: st
           .nullable(),
         source_url: z
           .string()
-          .regex(/^https:\/\/(letterboxd\.com\/film\/[\w-]+\/|boxd\.it\/\w+|www\.goodreads\.com\/book\/show\/\d+)$/)
+          .regex(/^https:\/\/(letterboxd\.com\/film\/[\w-]+\/|boxd\.it\/\w+|www\.goodreads\.com\/book\/show\/\d+|anilist\.co\/anime\/\d+)$/)
           .nullable(),
         match: Match.nullable(),
+        tv: z
+          .object({
+            // Long runners (One Piece) are past 1,000 episodes; the cap only stops a runaway row count.
+            episodes: z.number().int().min(0).max(5000).nullable(),
+            watched: z.number().int().min(0).max(5000),
+            format: z.string().max(40).nullable(),
+            runtime_min: z.number().int().min(1).max(1000).nullable(),
+            alt_title: z.string().max(500).nullable(),
+          })
+          .nullable()
+          .optional(),
         in_pit: z.string().nullable(),
       })
-      .refine(
-        (i) => (i.type === 'MOVIE') === (i.source === 'LETTERBOXD') && (!i.match || (i.match.provider === 'TMDB') === (i.type === 'MOVIE')),
-        'Item type does not match its source',
-      );
+      .refine((i) => {
+        const provider = { LETTERBOXD: 'TMDB', GOODREADS: 'OPENLIBRARY', ANILIST: 'ANILIST' }[i.source];
+        const type = { LETTERBOXD: 'MOVIE', GOODREADS: 'BOOK', ANILIST: 'TV' }[i.source];
+        return i.type === type && (!i.match || i.match.provider === provider) && (i.type === 'TV') === !!i.tv;
+      }, 'Item type does not match its source');
     const b = parse(z.object({ items: z.array(Item).min(1).max(10_000) }), req.body);
     reply.code(202);
     return startImport(db, opts.dataDir, b.items);

@@ -55,6 +55,16 @@ export interface AddPayload {
   external?: { provider: string; external_id: string } | null;
 }
 
+/** The fields of one AniList export list row that the import reads. */
+export interface AnilistEntry {
+  series_id: number;
+  status: number;
+  score: number;
+  progress: number;
+  started_on: number;
+  finished_on: number;
+}
+
 export const api = {
   health: () => req<{ ok: boolean; version: string }>('GET', '/api/health'),
   stats: () => req<Stats>('GET', '/api/stats'),
@@ -98,6 +108,7 @@ export const api = {
   letterboxdPreview: (profile: string) => req<ImportJob>('POST', '/api/import/letterboxd/preview', { profile }),
   letterboxdExport: (body: { zip: string } | { files: Record<string, string> }) => req<ImportJob>('POST', '/api/import/letterboxd/export', body),
   goodreadsPreview: (csv: string) => req<ImportJob>('POST', '/api/import/goodreads/preview', { csv }),
+  anilistPreview: (entries: AnilistEntry[]) => req<ImportJob>('POST', '/api/import/anilist/preview', { entries }),
   importItems: (items: ImportItem[]) => req<ImportJob>('POST', '/api/import', { items }),
   importJob: (id: string) => req<ImportJob>('GET', `/api/import/jobs/${id}`),
 };

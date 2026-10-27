@@ -5,7 +5,15 @@ import { AppError } from '../security/errors.js';
 import { searxngUrl } from '../config.js';
 
 // Adapters may only call these hosts (plus the local SearXNG origin). User/model-supplied URLs are never fetched.
-const ALLOWED_HOSTS = new Set(['api.tvmaze.com', 'openlibrary.org', 'id.twitch.tv', 'api.igdb.com', 'api.themoviedb.org', 'datasets.imdbws.com']);
+const ALLOWED_HOSTS = new Set([
+  'api.tvmaze.com',
+  'openlibrary.org',
+  'id.twitch.tv',
+  'api.igdb.com',
+  'api.themoviedb.org',
+  'datasets.imdbws.com',
+  'graphql.anilist.co',
+]);
 
 const isAllowed = (u: URL) => (u.protocol === 'https:' && ALLOWED_HOSTS.has(u.hostname)) || u.origin === searxngUrl()?.origin;
 
@@ -109,7 +117,7 @@ export function safeImage(url: unknown): string | null {
   try {
     const u = new URL(url);
     if (u.protocol === 'http:' && u.hostname === 'static.tvmaze.com') u.protocol = 'https:';
-    return u.protocol === 'https:' && ['static.tvmaze.com', 'covers.openlibrary.org', 'images.igdb.com', 'image.tmdb.org'].includes(u.hostname)
+    return u.protocol === 'https:' && ['static.tvmaze.com', 'covers.openlibrary.org', 'images.igdb.com', 'image.tmdb.org', 's4.anilist.co'].includes(u.hostname)
       ? u.toString()
       : null;
   } catch {
