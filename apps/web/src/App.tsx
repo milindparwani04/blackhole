@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { LibraryRow, MediaType } from '../../../packages/shared/src/index';
+import { kindType, type LibraryRow, type MediaType, type SearchKind } from '../../../packages/shared/src/index';
 import { api, ApiError, type Stats } from './api';
 import { Ctx, useApp, type AppCtx } from './context';
 import { Logo, SearchIcon, TypeIcon } from './components/Icons';
@@ -9,7 +9,7 @@ import { Inspector } from './features/Inspector';
 import { AddModal } from './features/AddModal';
 import { DataView } from './features/DataView';
 import { SettingsView } from './features/SettingsView';
-import { TYPE_LABEL } from './format';
+import { KIND_SEARCH, TYPE_LABEL } from './format';
 import { COMMANDS, matchCommands, parseSearch } from './searchCommand';
 import { useVisibleStats } from './settings';
 
@@ -39,7 +39,7 @@ export function App() {
   const [view, setView] = useState<View>(readRoute);
   const [version, setVersion] = useState(0);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [add, setAdd] = useState<{ type: MediaType; query: string } | null>(null);
+  const [add, setAdd] = useState<{ kind: SearchKind; query: string } | null>(null);
   const [toast, setToast] = useState<Toast | null>(null);
   const [allStats, setStats] = useState<Stats | null>(null);
   // Sidebar and home totals leave out anime/manga while their include toggle is off.
@@ -75,7 +75,7 @@ export function App() {
       bump: () => setVersion((v) => v + 1),
       selectedId,
       select: setSelectedId,
-      openAdd: (type, query) => setAdd({ type: type ?? (view.kind === 'library' ? view.type : 'GAME'), query: query ?? '' }),
+      openAdd: (kind, query) => setAdd({ kind: kind ?? (view.kind === 'library' ? view.type : 'GAME'), query: query ?? '' }),
       notify,
     }),
     [version, selectedId, view, notify],
@@ -155,7 +155,7 @@ export function App() {
         {selectedId && <Inspector key={selectedId} id={selectedId} />}
       </div>
 
-      {add && <AddModal initialType={add.type} initialQuery={add.query} onClose={() => setAdd(null)} />}
+      {add && <AddModal initialKind={add.kind} initialQuery={add.query} onClose={() => setAdd(null)} />}
 
       <div className="toast-region" role="status" aria-live="polite">
         {toast && (
@@ -208,7 +208,7 @@ function GlobalSearch() {
     return () => removeEventListener('keydown', onKey);
   }, []);
 
-  const { type, text, partial } = parseSearch(q);
+  const { kind, type, text, partial } = parseSearch(q);
 
   useEffect(() => {
     if (!text) return setRows([]);
@@ -227,10 +227,10 @@ function GlobalSearch() {
     };
   }, [text, type, version]);
 
-  const find = (t: MediaType) => {
+  const find = (k: SearchKind) => {
     setOpen(false);
     setQ('');
-    openAdd(t, text);
+    openAdd(k, text);
   };
   const complete = (cmd: string) => {
     setQ(`/${cmd} `);
@@ -245,15 +245,15 @@ function GlobalSearch() {
         <input
           ref={input}
           value={q}
-          placeholder="Search the Pit… or /game /movie /tv /book + a title to find new ones"
-          aria-label="Search your library, or start with /game, /movie, /tv or /book to search providers"
+          placeholder="Search the Pit… or /game /movie /tv /anime /book /manga + a title to find new ones"
+          aria-label="Search your library, or start with /game, /movie, /tv, /anime, /book or /manga to search providers"
           onFocus={() => setOpen(true)}
           onChange={(e) => (setQ(e.target.value), setOpen(true))}
           onKeyDown={(e) => {
             if ((e.key === 'Enter' || e.key === 'Tab') && commands.length === 1) {
               e.preventDefault();
               complete(commands[0].cmd);
-            } else if (e.key === 'Enter' && type && text) find(type);
+            } else if (e.key === 'Enter' && kind && text) find(kind);
             if (e.key === 'Escape') (setOpen(false), input.current?.blur());
           }}
         />
@@ -265,12 +265,12 @@ function GlobalSearch() {
             <>
               {commands.map((c) => (
                 <button key={c.cmd} className="search-hit" onClick={() => complete(c.cmd)}>
-                  <TypeIcon type={c.type} size={16} />
+                  <TypeIcon type={kindType(c.kind)} size={16} />
                   <span className="title">/{c.cmd}</span>
-                  <span className="muted">search {TYPE_LABEL[c.type].many.toLowerCase()}</span>
+                  <span className="muted">search {KIND_SEARCH[c.kind]}</span>
                 </button>
               ))}
-              {!commands.length && <div className="search-empty">Commands: /game, /movie, /tv, /book</div>}
+              {!commands.length && <div className="search-empty">Commands: /game, /movie, /tv, /anime, /book, /manga</div>}
             </>
           ) : (
             <>
@@ -282,23 +282,18 @@ function GlobalSearch() {
                 </button>
               ))}
               {text && !rows.length && <div className="search-empty">Nothing in the Pit matches.</div>}
-              {type && text ? (
-                <button className="search-hit provider" onClick={() => find(type)}>
-                  + Find “{text}” in {TYPE_LABEL[type].many.toLowerCase()} →
+              {kind && text ? (
+                <button className="search-hit provider" onClick={() => find(kind)}>
+                  + Find “{text}” in {KIND_SEARCH[kind]} →
                 </button>
-              ) : type ? (
-                <div className="search-empty">Type a title to search {TYPE_LABEL[type].many.toLowerCase()}.</div>
+              ) : kind ? (
+                <div className="search-empty">Type a title to search {KIND_SEARCH[kind]}.</div>
               ) : (
                 text && (
                   <div className="search-cmds">
                     <span className="muted">Find new:</span>
                     {COMMANDS.map((c) => (
-                      <button
-                        key={c.cmd}
-                        className="btn xs"
-                        onClick={() => find(c.type)}
-                        title={`Search ${TYPE_LABEL[c.type].many.toLowerCase()} for “${text}”`}
-                      >
+                      <button key={c.cmd} className="btn xs" onClick={() => find(c.kind)} title={`Search ${KIND_SEARCH[c.kind]} for “${text}”`}>
                         /{c.cmd}
                       </button>
                     ))}

@@ -150,9 +150,14 @@ describe('AniList import', () => {
       vi.fn(async (url: URL | string, init?: RequestInit) => {
         if (new URL(String(url)).hostname !== 'graphql.anilist.co') return new Response('not found', { status: 404 });
         const { query, variables } = JSON.parse(String(init?.body));
+        const from = /type: MANGA/.test(query) ? manga : catalogue;
+        if (typeof variables.q === 'string') {
+          // Title search (/anime, /manga): every work whose title contains the text.
+          const hits = [...from.values()].filter((m: any) => JSON.stringify(m.title).toLowerCase().includes(variables.q.toLowerCase()));
+          return new Response(JSON.stringify({ data: { Page: { media: hits } } }));
+        }
         const ids = variables.ids as number[];
         requests.push(ids);
-        const from = /type: MANGA/.test(query) ? manga : catalogue;
         return new Response(JSON.stringify({ data: { Page: { media: ids.map((i) => from.get(i)).filter(Boolean) } } }));
       }),
     );
@@ -284,6 +289,45 @@ describe('AniList import', () => {
     // Re-running adds nothing: each one is found by its own AniList ID.
     const again = await finish((await call('POST', '/api/import', { items: preview.items })).body.id);
     expect(again.result).toEqual({ added: 0, skipped: 2, failed: [] });
+  });
+
+  it('/anime searches AniList and adds the pick to TV as anime, with its aired episodes', async () => {
+    const found = await call('GET', '/api/search?type=ANIME&q=future');
+    expect(found.body).toMatchObject({ provider: 'ANILIST', provider_status: 'OK', attribution: expect.stringMatching(/AniList/) });
+    expect(found.body.results).toHaveLength(1);
+    const r = found.body.results[0];
+    expect(r).toMatchObject({ provider: 'ANILIST', external_id: '10620', type: 'TV', title: 'The Future Diary', extra: 'TV · 26 eps · Mirai Nikki' });
+    expect(r.already_in_pit).toBeNull();
+
+    const added = await call('POST', '/api/library', { ...r, external: { provider: 'ANILIST', external_id: r.external_id } });
+    expect(added.status).toBe(201);
+    expect(added.body.enrichment_error).toBeNull();
+    const d = added.body.detail;
+    expect(d.media).toMatchObject({ type: 'TV', metadata_source: 'ANILIST', source_url: 'https://anilist.co/anime/10620' });
+    expect(d.tv.progress.eligible).toBe(26);
+    expect(d.entry.status).toBe('PLANNED');
+
+    // Searching again marks it as already in the Pit, and adding it twice doesn't duplicate it.
+    expect((await call('GET', '/api/search?type=ANIME&q=future')).body.results[0].already_in_pit).toBe(d.entry.id);
+    expect((await call('POST', '/api/library', { ...r, external: { provider: 'ANILIST', external_id: '10620' } })).body.duplicate).toBe(true);
+
+    // An airing show gets the episodes aired so far; an unknown count is reported, not guessed.
+    const airing = await call('POST', '/api/library', { type: 'TV', title: 'Airing Show', external: { provider: 'ANILIST', external_id: '30000' } });
+    expect(airing.body.detail.tv.progress.eligible).toBe(4);
+    const mystery = await call('POST', '/api/library', { type: 'TV', title: 'Mystery Count', external: { provider: 'ANILIST', external_id: '40000' } });
+    expect(mystery.body.enrichment_error).toMatch(/episode count/);
+    expect(mystery.body.detail.tv.progress.eligible).toBe(0);
+  });
+
+  it('/manga searches AniList and adds the pick to Books as manga, with no guessed page count', async () => {
+    const found = await call('GET', '/api/search?type=MANGA&q=berserk');
+    const r = found.body.results[0];
+    expect(r).toMatchObject({ provider: 'ANILIST', external_id: '30002', type: 'BOOK', creator: 'Kentarou Miura', pages: null, extra: 'Manga' });
+    const added = await call('POST', '/api/library', { ...r, external: { provider: 'ANILIST', external_id: r.external_id } });
+    expect(added.body.detail.media).toMatchObject({ type: 'BOOK', metadata_source: 'ANILIST', source_url: 'https://anilist.co/manga/30002' });
+    expect(added.body.detail.book?.pages ?? null).toBeNull();
+    // No AniList lookups beyond the search itself for a manga.
+    expect(requests).toEqual([]);
   });
 
   it('rejects items whose source and type disagree, and an export with no anime', async () => {

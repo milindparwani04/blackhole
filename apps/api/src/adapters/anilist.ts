@@ -1,4 +1,4 @@
-import type { Status } from '../../../../packages/shared/src/index.js';
+import type { SearchResult, Status } from '../../../../packages/shared/src/index.js';
 import { AppError } from '../security/errors.js';
 import { fetchJson, plainText, safeImage } from './http.js';
 
@@ -119,6 +119,76 @@ export function mapAnilistMedia(m: RawMedia): AnilistMedia {
     cover_url: safeImage(m.coverImage?.large),
     creator: m.studios?.nodes?.[0]?.name ?? writer(m),
   };
+}
+
+const searchQuery = (type: AnilistType) => `query ($q: String) {
+  Page(page: 1, perPage: 15) {
+    media(search: $q, type: ${type}, sort: SEARCH_MATCH, isAdult: false) {
+      id title { romaji english } format status startDate { year } genres description(asHtml: false) coverImage { large }
+      ${FIELDS[type]}
+    }
+  }
+}`;
+
+const FORMAT_LABEL: Record<string, string> = {
+  TV: 'TV',
+  TV_SHORT: 'TV short',
+  MOVIE: 'Film',
+  SPECIAL: 'Special',
+  OVA: 'OVA',
+  ONA: 'ONA',
+  MUSIC: 'Music',
+  MANGA: 'Manga',
+  NOVEL: 'Light novel',
+  ONE_SHOT: 'One-shot',
+};
+
+/** The one-line detail under a search result: format, size (when AniList knows it) and the other-language title. */
+export function anilistExtra(type: AnilistType, m: AnilistMedia): string | null {
+  const size =
+    type === 'ANIME'
+      ? m.episodes
+        ? `${m.episodes} ep${m.episodes === 1 ? '' : 's'}`
+        : null
+      : m.chapters
+        ? `${m.chapters} ch`
+        : m.volumes
+          ? `${m.volumes} vol`
+          : null;
+  const parts = [m.format ? (FORMAT_LABEL[m.format] ?? m.format) : null, size, m.alt_title];
+  return parts.filter(Boolean).join(' · ') || null;
+}
+
+/** Title search for the Add dialog's Anime / Manga tabs (/anime, /manga). Anime are added as TV shows, manga as books. */
+export async function searchAnilist(type: AnilistType, q: string): Promise<SearchResult[]> {
+  const res = await fetchJson<{ data?: { Page: { media: RawMedia[] } } }>(ENDPOINT, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ query: searchQuery(type), variables: { q } }),
+    timeoutMs: 15_000,
+  });
+  const anime = type === 'ANIME';
+  return (res.data?.Page.media ?? []).map((raw) => {
+    const m = mapAnilistMedia(raw);
+    return {
+      provider: 'ANILIST',
+      external_id: String(m.id),
+      type: anime ? 'TV' : 'BOOK',
+      title: m.title,
+      year: m.year,
+      synopsis: m.synopsis,
+      cover_url: m.cover_url,
+      genres: m.genres,
+      platforms: [],
+      creator: m.creator,
+      runtime_min: anime ? m.runtime_min : null,
+      source_url: `https://anilist.co/${anime ? 'anime' : 'manga'}/${m.id}`,
+      extra: anilistExtra(type, m),
+      // AniList has no page counts; never guessed.
+      pages: null,
+      already_in_pit: null,
+    };
+  });
 }
 
 /**

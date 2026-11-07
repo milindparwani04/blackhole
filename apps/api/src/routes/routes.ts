@@ -2,7 +2,16 @@ import type { FastifyInstance } from 'fastify';
 import path from 'node:path';
 import fs from 'node:fs';
 import { z } from 'zod';
-import { MEDIA_TYPES, PS_PLATFORMS, STATUSES, TIME_CATEGORIES, type MutationResult, type SearchResponse } from '../../../../packages/shared/src/index.js';
+import {
+  kindType,
+  MEDIA_TYPES,
+  PS_PLATFORMS,
+  SEARCH_KINDS,
+  STATUSES,
+  TIME_CATEGORIES,
+  type MutationResult,
+  type SearchResponse,
+} from '../../../../packages/shared/src/index.js';
 import { all, get, nowIso, run, tx, uuid, type DB } from '../db/db.js';
 import { AppError } from '../security/errors.js';
 import { searchBooks, OPENLIBRARY_ATTRIBUTION } from '../adapters/openlibrary.js';
@@ -23,6 +32,7 @@ import {
   startLetterboxdPreview,
 } from '../services/imports.js';
 import { letterboxdUser } from '../adapters/letterboxd.js';
+import { ANILIST_ATTRIBUTION, fetchAnilistMedia, searchAnilist } from '../adapters/anilist.js';
 import { enrichNewGame, queueTrophyLookup, refreshIgdbTime } from '../services/games.js';
 import {
   addToPit,
@@ -72,7 +82,7 @@ const AddBody = z.object({
   season_counts: z.array(z.number().int().min(1).max(500)).max(100).optional(),
   play_platform: z.string().trim().min(1).max(30).nullable().optional(),
   external: z
-    .object({ provider: z.enum(['TVMAZE', 'OPENLIBRARY', 'IGDB', 'TMDB']), external_id: z.string().min(1).max(100) })
+    .object({ provider: z.enum(['TVMAZE', 'OPENLIBRARY', 'IGDB', 'TMDB', 'ANILIST']), external_id: z.string().min(1).max(100) })
     .nullable()
     .optional(),
 });
@@ -220,7 +230,16 @@ export function registerRoutes(app: FastifyInstance, db: DB, opts: { dataDir: st
     let enrichment_error: string | null = null;
     if (!duplicate && b.type === 'TV') {
       const mediaId = mediaIdOf(entryId);
-      if (external) {
+      if (external?.provider === 'ANILIST') {
+        // Anime: one season of AniList's episode count (aired so far while airing), stored like the AniList import's.
+        try {
+          const m = (await fetchAnilistMedia('ANIME', [Number(external.external_id)], 0)).get(Number(external.external_id));
+          if (m?.episodes) createManualSeasons(db, mediaId, [m.episodes]);
+          else enrichment_error = 'AniList doesn’t list an episode count for this one yet';
+        } catch (err) {
+          enrichment_error = err instanceof AppError ? err.message : 'Episode count could not be fetched from AniList';
+        }
+      } else if (external) {
         try {
           await syncEpisodes(db, mediaId, external.external_id);
           // IMDb ratings can take a while on first use (dataset download); they land in the background.
@@ -673,7 +692,8 @@ export function registerRoutes(app: FastifyInstance, db: DB, opts: { dataDir: st
   // ---------- search ----------
 
   app.get('/api/search', async (req): Promise<SearchResponse> => {
-    const q = parse(z.object({ type: z.enum(MEDIA_TYPES), q: z.string().trim().min(2).max(120) }), req.query);
+    const q = parse(z.object({ type: z.enum(SEARCH_KINDS), q: z.string().trim().min(2).max(120) }), req.query);
+    const type = kindType(q.type);
     const notConfigured = (provider: string, message: string): SearchResponse => ({
       provider,
       provider_status: 'NOT_CONFIGURED',
@@ -690,6 +710,8 @@ export function registerRoutes(app: FastifyInstance, db: DB, opts: { dataDir: st
       MOVIE: { provider: 'TMDB', run: searchMovies, attribution: TMDB_ATTRIBUTION },
       TV: { provider: 'TVMAZE', run: searchShows, attribution: TVMAZE_ATTRIBUTION },
       BOOK: { provider: 'OPENLIBRARY', run: searchBooks, attribution: OPENLIBRARY_ATTRIBUTION },
+      ANIME: { provider: 'ANILIST', run: (s: string) => searchAnilist('ANIME', s), attribution: ANILIST_ATTRIBUTION },
+      MANGA: { provider: 'ANILIST', run: (s: string) => searchAnilist('MANGA', s), attribution: ANILIST_ATTRIBUTION },
     }[q.type];
     const provider = SEARCH.provider;
     try {
@@ -700,7 +722,7 @@ export function registerRoutes(app: FastifyInstance, db: DB, opts: { dataDir: st
             db,
             `SELECT le.id FROM external_ids x JOIN library_entries le ON le.media_id = x.media_id
              WHERE x.provider = :p AND x.object_type = :t AND x.external_id = :e`,
-            { p: provider, t: q.type, e: r.external_id },
+            { p: provider, t: type, e: r.external_id },
           )?.id ?? null;
       }
       return { provider, provider_status: 'OK', message: null, attribution: SEARCH.attribution, results };

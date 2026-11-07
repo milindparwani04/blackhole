@@ -4,7 +4,7 @@ import { api } from '../api';
 import { useApp } from '../context';
 import { ConfirmButton, Cover, DifficultyBar, Empty, MovieRatingBadges, StatusPill } from '../components/Bits';
 import { TypeIcon } from '../components/Icons';
-import { setSettings, useAnilistFilter, useSettings } from '../settings';
+import { setSettings, useAnilistFilter, useSettings, type AnilistMode } from '../settings';
 import { fmtDate, fmtHours, fmtRange, pct, STATUS_LABEL, TYPE_LABEL } from '../format';
 import { SpinWheel } from './SpinWheel';
 
@@ -14,7 +14,7 @@ const keepAll = () => true;
 
 export function LibraryView({ type, archived }: { type?: MediaType; archived?: boolean }) {
   const { version, openAdd, bump, notify } = useApp();
-  const { showReviews, includeAnime, includeManga } = useSettings();
+  const { showReviews, anime, manga } = useSettings();
   const anilist = useAnilistFilter();
   // The archive has no include toggles, so it never hides anything.
   const anilistFilter = archived ? keepAll : anilist;
@@ -227,14 +227,30 @@ export function LibraryView({ type, archived }: { type?: MediaType; archived?: b
           </>
         )}
         {type === 'TV' && (
-          <label className="check" title="Anime are the shows imported from AniList">
-            <input type="checkbox" checked={includeAnime} onChange={(e) => setSettings({ includeAnime: e.target.checked })} /> Include anime
-          </label>
+          <select
+            className="input"
+            value={anime}
+            onChange={(e) => setSettings({ anime: e.target.value as AnilistMode })}
+            aria-label="Anime"
+            title="Anime are the shows from AniList (imported, or added with /anime)"
+          >
+            <option value="ALL">With anime</option>
+            <option value="HIDE">No anime</option>
+            <option value="ONLY">Anime only</option>
+          </select>
         )}
         {type === 'BOOK' && (
-          <label className="check" title="Manga are the books imported from AniList">
-            <input type="checkbox" checked={includeManga} onChange={(e) => setSettings({ includeManga: e.target.checked })} /> Include manga
-          </label>
+          <select
+            className="input"
+            value={manga}
+            onChange={(e) => setSettings({ manga: e.target.value as AnilistMode })}
+            aria-label="Manga"
+            title="Manga are the books from AniList (imported, or added with /manga)"
+          >
+            <option value="ALL">With manga</option>
+            <option value="HIDE">No manga</option>
+            <option value="ONLY">Manga only</option>
+          </select>
         )}
         <span className="spacer" />
         <select className="input" value={sort} onChange={(e) => setSort(e.target.value as Sort)} aria-label="Sort">
