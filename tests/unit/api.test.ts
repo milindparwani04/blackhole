@@ -93,6 +93,34 @@ describe('library CRUD', () => {
     expect((await call('GET', '/api/library?type=MOVIE')).body).toHaveLength(0);
   });
 
+  it('changes the status of many entries at once, one undoable event each', async () => {
+    const ids: string[] = [];
+    for (const title of ['Lost', 'Fringe', 'Dark']) ids.push((await add({ type: 'TV', title })).body.detail.entry.id);
+    await call('POST', `/api/library/${ids[2]}/status`, { status: 'COMPLETED' });
+    const r = await call('POST', '/api/library/bulk/status', { ids, status: 'COMPLETED' });
+    expect(r.status).toBe(200);
+    expect(r.body).toEqual({ changed: 2, unchanged: 1 });
+    const list = (await call('GET', '/api/library?type=TV')).body as any[];
+    expect(list.every((x) => x.entry.status === 'COMPLETED' && x.entry.completed_at)).toBe(true);
+    const detail = (await call('GET', `/api/library/${ids[0]}`)).body;
+    const ev = detail.events.find((e: any) => e.event_type === 'STATUS');
+    expect((await call('POST', `/api/events/${ev.id}/undo`)).status).toBe(200);
+    expect((await call('GET', `/api/library/${ids[0]}`)).body.entry.status).toBe('PLANNED');
+  });
+
+  it('removes many entries at once, and rolls back the whole batch on an unknown id', async () => {
+    const ids: string[] = [];
+    for (const title of ['A', 'B', 'C']) ids.push((await add({ type: 'MOVIE', title })).body.detail.entry.id);
+    const bad = await call('POST', '/api/library/bulk/delete', { ids: [ids[0], '00000000-0000-4000-8000-000000000000'] });
+    expect(bad.status).toBe(404);
+    expect((await call('GET', '/api/library?type=MOVIE')).body).toHaveLength(3);
+    const ok = await call('POST', '/api/library/bulk/delete', { ids: [ids[0], ids[1], ids[1]] });
+    expect(ok.body).toEqual({ deleted: 2 });
+    const left = (await call('GET', '/api/library?type=MOVIE')).body as any[];
+    expect(left.map((x) => x.entry.id)).toEqual([ids[2]]);
+    expect((await call('POST', '/api/library/bulk/delete', { ids: [] })).status).toBe(400);
+  });
+
   it('enforces optimistic concurrency on PATCH', async () => {
     const { body } = await add({ type: 'MOVIE', title: 'Alien' });
     const id = body.detail.entry.id;

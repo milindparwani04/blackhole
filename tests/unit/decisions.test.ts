@@ -256,12 +256,12 @@ describe('TV completion (D-04)', () => {
         air,
       });
     ep(1, '2026-10-01');
-    ep(2, '2026-11-01');
+    ep(2, '2099-11-01');
     const d = (await call('GET', `/api/library/${id}`)).body;
     const done = await call('POST', `/api/tv/${id}/episodes/${d.tv.seasons[0].episodes[0].id}/watch`, { watched: true });
     expect(done.body.detail.entry.status).toBe('COMPLETED');
     // Time passes: episode 2 airs.
-    setTodayForTests(() => '2026-11-02');
+    setTodayForTests(() => '2099-11-02');
     const { reconcileTv } = await import('../../apps/api/src/services/library.js');
     expect(reconcileTv(db, id)).not.toBeNull();
     const after = (await call('GET', `/api/library/${id}`)).body;
