@@ -228,6 +228,13 @@ code { font-family: var(--font); color: var(--accent-2); }
 .table tbody tr:hover { background: var(--panel-2); }
 .table tbody tr.selected { background: var(--accent-soft); }
 .table .num { width: 36px; }
+.table .pick { width: 28px; padding-right: 0; }
+.table .pick input { accent-color: var(--text); cursor: pointer; margin: 0; }
+.table tbody .pick input { pointer-events: none; }
+.table.picking tbody { user-select: none; }
+.btn.ghost.on { background: var(--text); border-color: var(--text); color: var(--bg); }
+.bulk-bar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; padding: 8px 10px; border: 1px solid var(--line-2); background: var(--panel-2); }
+.bulk-bar .input { width: auto; }
 .title-cell { display: flex; align-items: center; gap: 12px; }
 .rating-badges { display: inline-flex; gap: 12px; align-items: center; white-space: nowrap; font-size: 12px; }
 .rb b { font-weight: 600; font-size: 10px; letter-spacing: 0.08em; color: var(--warn); margin-right: 2px; }

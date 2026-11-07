@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { STATUSES, type LibraryRow, type MediaType, type Status } from '../../../../packages/shared/src/index';
 import { api } from '../api';
 import { useApp } from '../context';
-import { Cover, DifficultyBar, Empty, MovieRatingBadges, StatusPill } from '../components/Bits';
+import { ConfirmButton, Cover, DifficultyBar, Empty, MovieRatingBadges, StatusPill } from '../components/Bits';
 import { TypeIcon } from '../components/Icons';
 import { setSettings, useAnilistFilter, useSettings } from '../settings';
 import { fmtDate, fmtHours, fmtRange, pct, STATUS_LABEL, TYPE_LABEL } from '../format';
@@ -13,7 +13,7 @@ type Sort = 'added' | 'title' | 'normal' | 'platinum' | 'difficulty' | 'year' | 
 const keepAll = () => true;
 
 export function LibraryView({ type, archived }: { type?: MediaType; archived?: boolean }) {
-  const { version, openAdd } = useApp();
+  const { version, openAdd, bump, notify } = useApp();
   const { showReviews, includeAnime, includeManga } = useSettings();
   const anilist = useAnilistFilter();
   // The archive has no include toggles, so it never hides anything.
@@ -28,6 +28,27 @@ export function LibraryView({ type, archived }: { type?: MediaType; archived?: b
   const [minRt, setMinRt] = useState('');
   const [includeUnknown, setIncludeUnknown] = useState(true);
   const [spin, setSpin] = useState(false);
+  // Multi-select: `picking` swaps row clicks from "open details" to "toggle"; `picked` holds entry ids.
+  const [picking, setPicking] = useState(false);
+  const [picked, setPicked] = useState<Set<string>>(() => new Set());
+  const [busy, setBusy] = useState(false);
+
+  // Switching to another type or the archive drops the selection.
+  useEffect(() => {
+    setPicking(false);
+    setPicked(new Set());
+  }, [type, archived]);
+
+  useEffect(() => {
+    if (!picking) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      setPicking(false);
+      setPicked(new Set());
+    };
+    addEventListener('keydown', onKey);
+    return () => removeEventListener('keydown', onKey);
+  }, [picking]);
 
   useEffect(() => {
     // `live` drops a slow older response (e.g. a previous status filter) so it can't overwrite a newer one.
@@ -75,6 +96,38 @@ export function LibraryView({ type, archived }: { type?: MediaType; archived?: b
     return sorted;
   }, [rows, anilistFilter, text, platform, sort, maxPlat, minImdb, minRt, includeUnknown, showReviews]);
 
+  // Bulk actions only touch selected rows that are still visible, so a filter change never hides a pending delete.
+  const targets = picking ? shown.filter((r) => picked.has(r.entry.id)) : [];
+  const stopPicking = () => {
+    setPicking(false);
+    setPicked(new Set());
+  };
+  const runBulk = async (work: () => Promise<string>) => {
+    setBusy(true);
+    try {
+      notify(await work());
+      stopPicking();
+      bump();
+    } catch (e) {
+      notify(e instanceof Error ? e.message : 'Bulk change failed', { error: true });
+    } finally {
+      setBusy(false);
+    }
+  };
+  const bulkStatus = (s: Status) =>
+    runBulk(async () => {
+      const r = await api.bulkStatus(
+        targets.map((t) => t.entry.id),
+        s,
+      );
+      return `${r.changed} set to ${STATUS_LABEL[s]}${r.unchanged ? ` · ${r.unchanged} already were` : ''}`;
+    });
+  const bulkRemove = () =>
+    runBulk(async () => {
+      const r = await api.bulkRemove(targets.map((t) => t.entry.id));
+      return `${r.deleted} removed from the Pit`;
+    });
+
   const inScope = (rows ?? []).filter(anilistFilter);
   const done = inScope.filter((r) => r.entry.status === 'COMPLETED').length;
   const title = archived ? 'ARCHIVE' : `${TYPE_LABEL[type!].one.toUpperCase()} BACKLOG`;
@@ -92,16 +145,26 @@ export function LibraryView({ type, archived }: { type?: MediaType; archived?: b
             </div>
           </div>
         </div>
-        {!archived && (
-          <div className="row gap">
-            <button className="btn ghost" onClick={() => setSpin(true)} title="Pick a random title from the Planned and Paused backlog">
-              SPIN
-            </button>
-            <button className="btn primary" onClick={() => openAdd(type)}>
-              + ADD TO THE PIT
-            </button>
-          </div>
-        )}
+        <div className="row gap">
+          <button
+            className={`btn ghost${picking ? ' on' : ''}`}
+            onClick={() => (picking ? stopPicking() : setPicking(true))}
+            aria-pressed={picking}
+            title="Select several titles to change their status or remove them"
+          >
+            {picking ? 'DONE' : 'SELECT'}
+          </button>
+          {!archived && (
+            <>
+              <button className="btn ghost" onClick={() => setSpin(true)} title="Pick a random title from the Planned and Paused backlog">
+                SPIN
+              </button>
+              <button className="btn primary" onClick={() => openAdd(type)}>
+                + ADD TO THE PIT
+              </button>
+            </>
+          )}
+        </div>
         {spin && type && <SpinWheel type={type} onClose={() => setSpin(false)} />}
       </div>
 
@@ -194,6 +257,31 @@ export function LibraryView({ type, archived }: { type?: MediaType; archived?: b
         </select>
       </div>
 
+      {picking && (
+        <div className="bulk-bar" role="toolbar" aria-label="Bulk actions">
+          <span className="eyebrow">{targets.length} SELECTED</span>
+          <select
+            className="input"
+            value=""
+            disabled={!targets.length || busy}
+            onChange={(e) => e.target.value && bulkStatus(e.target.value as Status)}
+            aria-label="Set status of selected titles"
+          >
+            <option value="">Set status…</option>
+            {STATUSES.map((s) => (
+              <option key={s} value={s}>
+                {STATUS_LABEL[s]}
+              </option>
+            ))}
+          </select>
+          <ConfirmButton className="btn danger-ghost sm" confirm={`Remove ${targets.length} forever`} onConfirm={bulkRemove} disabled={!targets.length || busy}>
+            Remove from Pit
+          </ConfirmButton>
+          <span className="spacer" />
+          <span className="muted sm">Click rows · Shift-click for a range · Esc to finish</span>
+        </div>
+      )}
+
       {rows === null ? (
         <Empty>Loading…</Empty>
       ) : shown.length === 0 ? (
@@ -201,20 +289,79 @@ export function LibraryView({ type, archived }: { type?: MediaType; archived?: b
           {rows.length ? 'No entries match these filters.' : archived ? 'Nothing archived.' : `No ${TYPE_LABEL[type!].many.toLowerCase()} in the Pit yet.`}
         </Empty>
       ) : (
-        <LibraryTable type={type} rows={shown} />
+        <LibraryTable type={type} rows={shown} picked={picking ? picked : undefined} onPick={setPicked} />
       )}
     </section>
   );
 }
 
-export function LibraryTable({ type, rows }: { type?: MediaType; rows: LibraryRow[] }) {
+export function LibraryTable({
+  type,
+  rows,
+  picked,
+  onPick,
+}: {
+  type?: MediaType;
+  rows: LibraryRow[];
+  /** When set, the table is in multi-select mode and row clicks toggle membership. */
+  picked?: Set<string>;
+  onPick?: (next: Set<string>) => void;
+}) {
   const { showReviews } = useSettings();
   const { select, selectedId } = useApp();
+  const [anchor, setAnchor] = useState<number | null>(null);
+  const picking = !!picked && !!onPick;
+  const isPicked = (id: string) => !!picked?.has(id);
+  const allPicked = picking && rows.length > 0 && rows.every((r) => isPicked(r.entry.id));
+  const somePicked = picking && rows.some((r) => isPicked(r.entry.id));
+
+  const toggle = (i: number, range: boolean) => {
+    if (!picked || !onPick) return;
+    const next = new Set(picked);
+    if (range && anchor != null && anchor < rows.length) {
+      // Shift-click: the whole span takes the anchor row's state.
+      const on = picked.has(rows[anchor].entry.id);
+      for (let k = Math.min(anchor, i); k <= Math.max(anchor, i); k++) {
+        if (on) next.add(rows[k].entry.id);
+        else next.delete(rows[k].entry.id);
+      }
+    } else {
+      const id = rows[i].entry.id;
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      setAnchor(i);
+    }
+    onPick(next);
+  };
+  const toggleAll = () => {
+    if (!picked || !onPick) return;
+    const next = new Set(picked);
+    for (const r of rows) {
+      if (allPicked) next.delete(r.entry.id);
+      else next.add(r.entry.id);
+    }
+    onPick(next);
+  };
+  const activate = (i: number, range: boolean) => (picking ? toggle(i, range) : select(rows[i].entry.id));
+
   return (
     <div className="table-wrap">
-      <table className="table">
+      <table className={picking ? 'table picking' : 'table'}>
         <thead>
           <tr>
+            {picking && (
+              <th className="pick">
+                <input
+                  type="checkbox"
+                  checked={allPicked}
+                  ref={(el) => {
+                    if (el) el.indeterminate = somePicked && !allPicked;
+                  }}
+                  onChange={toggleAll}
+                  aria-label={allPicked ? 'Deselect all shown' : 'Select all shown'}
+                />
+              </th>
+            )}
             <th className="num">#</th>
             <th>Title</th>
             {type === 'GAME' && (
@@ -253,12 +400,18 @@ export function LibraryTable({ type, rows }: { type?: MediaType; rows: LibraryRo
           {rows.map((r, i) => (
             <tr
               key={r.entry.id}
-              className={selectedId === r.entry.id ? 'selected' : ''}
+              className={(picking ? isPicked(r.entry.id) : selectedId === r.entry.id) ? 'selected' : ''}
               tabIndex={0}
-              onClick={() => select(r.entry.id)}
-              onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), select(r.entry.id))}
-              aria-label={`${r.media.title}, open details`}
+              onClick={(e) => activate(i, e.shiftKey)}
+              onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), activate(i, e.shiftKey))}
+              aria-label={picking ? `${r.media.title}, ${isPicked(r.entry.id) ? 'selected' : 'not selected'}` : `${r.media.title}, open details`}
+              aria-selected={picking ? isPicked(r.entry.id) : undefined}
             >
+              {picking && (
+                <td className="pick">
+                  <input type="checkbox" checked={isPicked(r.entry.id)} readOnly tabIndex={-1} aria-hidden="true" />
+                </td>
+              )}
               <td className="num muted">{String(i + 1).padStart(2, '0')}</td>
               <td>
                 <span className="title-cell">

@@ -493,6 +493,30 @@ export function registerRoutes(app: FastifyInstance, db: DB, opts: { dataDir: st
     return { deleted: true };
   });
 
+  // Multi-select in the library tables. Each runs as one transaction: an unknown id rolls back the whole batch.
+  const bulkIds = z.array(z.string().uuid()).min(1).max(5000);
+
+  app.post('/api/library/bulk/status', async (req) => {
+    const b = parse(z.object({ ids: bulkIds, status: z.enum(STATUSES) }), req.body);
+    const ids = [...new Set(b.ids)];
+    // Each changed entry gets its own STATUS event, so per-title undo in the Inspector still works.
+    const changed = tx(db, () => ids.filter((id) => setStatus(db, id, b.status) !== null).length);
+    return { changed, unchanged: ids.length - changed };
+  });
+
+  app.post('/api/library/bulk/delete', async (req) => {
+    const b = parse(z.object({ ids: bulkIds }), req.body);
+    const ids = [...new Set(b.ids)];
+    tx(db, () => {
+      for (const id of ids) {
+        const d = loadDetail(db, id);
+        run(db, 'DELETE FROM media_items WHERE id = :id', { id: d.media.id });
+        audit('PERMANENT_DELETE', { title: d.media.title, type: d.media.type, bulk: true });
+      }
+    });
+    return { deleted: ids.length };
+  });
+
   app.post('/api/events/:id/undo', async (req) => {
     const { id } = parse(idParam, req.params);
     return result(undoEvent(db, id), null);
