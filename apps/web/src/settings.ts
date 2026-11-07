@@ -6,22 +6,31 @@ import type { Stats } from './api';
 export interface Settings {
   /** Show IMDb and Rotten Tomatoes ratings (movie scores, episode ratings, rating filters). */
   showReviews: boolean;
-  /** Include anime (TV shows imported from AniList) in the TV list, its home backlog and its spin wheel. */
-  includeAnime: boolean;
-  /** Include manga (books imported from AniList) in the Books list, its home backlog and its spin wheel. */
-  includeManga: boolean;
+  /** Anime (TV shows from AniList) in the TV list, its home backlog, its spin wheel and the totals: all shows, none, or only anime. */
+  anime: AnilistMode;
+  /** Manga (books from AniList), the same way for Books. */
+  manga: AnilistMode;
 }
+
+/** ALL: everything. HIDE: leave the AniList titles out. ONLY: just the AniList titles. */
+export type AnilistMode = 'ALL' | 'HIDE' | 'ONLY';
+const MODES: readonly AnilistMode[] = ['ALL', 'HIDE', 'ONLY'];
 
 /** Size of every element (1 = 100%). Fixed: browser zoom is blocked, so this is the app's only zoom. */
 const GUI_SCALE = 1.25;
-const DEFAULTS: Settings = { showReviews: true, includeAnime: true, includeManga: true };
+const DEFAULTS: Settings = { showReviews: true, anime: 'ALL', manga: 'ALL' };
 const KEY = 'blackhole.settings';
 
 function read(): Settings {
   try {
     const raw = JSON.parse(localStorage.getItem(KEY) ?? '{}');
-    const flag = (k: keyof Settings) => (typeof raw[k] === 'boolean' ? raw[k] : DEFAULTS[k]);
-    return { showReviews: flag('showReviews'), includeAnime: flag('includeAnime'), includeManga: flag('includeManga') };
+    // Older settings stored include toggles (includeAnime/includeManga); an "off" one becomes HIDE.
+    const mode = (k: 'anime' | 'manga', legacy: string): AnilistMode => (MODES.includes(raw[k]) ? raw[k] : raw[legacy] === false ? 'HIDE' : 'ALL');
+    return {
+      showReviews: typeof raw.showReviews === 'boolean' ? raw.showReviews : DEFAULTS.showReviews,
+      anime: mode('anime', 'includeAnime'),
+      manga: mode('manga', 'includeManga'),
+    };
   } catch {
     return DEFAULTS;
   }
@@ -51,32 +60,38 @@ export function useSettings(): Settings {
   );
 }
 
-/** True when a row passes the anime/manga include toggles. Anime and manga are the TV shows and books imported from AniList. */
+const passes = (mode: AnilistMode, fromAnilist: boolean) => mode === 'ALL' || (mode === 'ONLY') === fromAnilist;
+
+/** True when a row passes the anime/manga filters. Anime and manga are the TV shows and books from AniList (imported or added via /anime, /manga). */
 export function useAnilistFilter(): (r: LibraryRow) => boolean {
-  const { includeAnime, includeManga } = useSettings();
+  const { anime, manga } = useSettings();
   return useCallback(
-    (r: LibraryRow) => r.media.metadata_source !== 'ANILIST' || (r.media.type === 'TV' ? includeAnime : r.media.type === 'BOOK' ? includeManga : true),
-    [includeAnime, includeManga],
+    (r: LibraryRow) => {
+      const ani = r.media.metadata_source === 'ANILIST';
+      return r.media.type === 'TV' ? passes(anime, ani) : r.media.type === 'BOOK' ? passes(manga, ani) : true;
+    },
+    [anime, manga],
   );
 }
 
-/** Library totals with anime/manga taken out while their include toggle is off (sidebar and home stat cards). */
+/** Library totals following the anime/manga filters (sidebar and home stat cards). */
 export function useVisibleStats(stats: Stats | null): Stats | null {
-  const { includeAnime, includeManga } = useSettings();
+  const { anime, manga } = useSettings();
   return useMemo(() => {
-    if (!stats || (includeAnime && includeManga)) return stats;
+    if (!stats || (anime === 'ALL' && manga === 'ALL')) return stats;
     const byType = { ...stats.byType };
-    for (const [t, on] of [
-      ['TV', includeAnime],
-      ['BOOK', includeManga],
+    for (const [t, mode] of [
+      ['TV', anime],
+      ['BOOK', manga],
     ] as const) {
-      if (on) continue;
+      if (mode === 'ALL') continue;
       const all = stats.byType[t];
       const ani = stats.anilist[t];
-      byType[t] = { total: all.total - ani.total, completed: all.completed - ani.completed, in_progress: all.in_progress - ani.in_progress };
+      byType[t] =
+        mode === 'ONLY' ? ani : { total: all.total - ani.total, completed: all.completed - ani.completed, in_progress: all.in_progress - ani.in_progress };
     }
     return { ...stats, byType };
-  }, [stats, includeAnime, includeManga]);
+  }, [stats, anime, manga]);
 }
 
 /** Browser zoom is disabled: Ctrl/⌘ + wheel, Ctrl/⌘ + plus/minus/0 and pinch do nothing. The fixed GUI scale is the only zoom. */

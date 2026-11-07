@@ -27,8 +27,9 @@ const easeOut = (t: number) => 1 - Math.pow(1 - t, 4);
 export function SpinWheel({ type, onClose }: { type: MediaType; onClose: () => void }) {
   const { select, bump, notify } = useApp();
   const anilistFilter = useAnilistFilter();
-  const { includeAnime, includeManga } = useSettings();
-  const excluded = type === 'TV' && !includeAnime ? 'ANIME' : type === 'BOOK' && !includeManga ? 'MANGA' : null;
+  const { anime, manga } = useSettings();
+  const [what, mode] = type === 'TV' ? ['ANIME', anime] : type === 'BOOK' ? ['MANGA', manga] : ['', 'ALL'];
+  const scope = mode === 'HIDE' ? `${what} EXCLUDED` : mode === 'ONLY' ? `${what} ONLY` : null;
   const [pool, setPool] = useState<LibraryRow[] | null>(null);
   const [rotation, setRotation] = useState(0);
   const [spinning, setSpinning] = useState(false);
@@ -119,7 +120,7 @@ export function SpinWheel({ type, onClose }: { type: MediaType; onClose: () => v
             <>
               <div className="eyebrow muted">
                 {n} {n === 1 ? label.one.toUpperCase() : label.many.toUpperCase()} PLANNED OR PAUSED
-                {excluded && ` · ${excluded} EXCLUDED`}
+                {scope && ` · ${scope}`}
               </div>
               <div className="spin-stage">
                 <span className="spin-pointer" aria-hidden="true" />

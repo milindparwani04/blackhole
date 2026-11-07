@@ -3,10 +3,10 @@ import { matchCommands, parseSearch } from '../../apps/web/src/searchCommand.js'
 
 describe('top-bar search commands', () => {
   it('a command picks the media type and leaves the title as the search text', () => {
-    expect(parseSearch('/book red rising')).toEqual({ type: 'BOOK', text: 'red rising', partial: null });
-    expect(parseSearch('/game  hollow knight ')).toEqual({ type: 'GAME', text: 'hollow knight', partial: null });
-    expect(parseSearch('/tv fargo')).toEqual({ type: 'TV', text: 'fargo', partial: null });
-    expect(parseSearch('/MOVIE dune')).toEqual({ type: 'MOVIE', text: 'dune', partial: null });
+    expect(parseSearch('/book red rising')).toEqual({ kind: 'BOOK', type: 'BOOK', text: 'red rising', partial: null });
+    expect(parseSearch('/game  hollow knight ')).toEqual({ kind: 'GAME', type: 'GAME', text: 'hollow knight', partial: null });
+    expect(parseSearch('/tv fargo')).toEqual({ kind: 'TV', type: 'TV', text: 'fargo', partial: null });
+    expect(parseSearch('/MOVIE dune')).toEqual({ kind: 'MOVIE', type: 'MOVIE', text: 'dune', partial: null });
   });
 
   it('aliases work', () => {
@@ -17,19 +17,26 @@ describe('top-bar search commands', () => {
   });
 
   it('a bare command has a type but no text yet', () => {
-    expect(parseSearch('/book')).toEqual({ type: 'BOOK', text: '', partial: null });
+    expect(parseSearch('/book')).toEqual({ kind: 'BOOK', type: 'BOOK', text: '', partial: null });
   });
 
   it('a half-typed command is partial and suggests matches', () => {
-    expect(parseSearch('/bo')).toEqual({ type: null, text: '', partial: 'bo' });
-    expect(parseSearch('/')).toEqual({ type: null, text: '', partial: '' });
+    expect(parseSearch('/bo')).toEqual({ kind: null, type: null, text: '', partial: 'bo' });
+    expect(parseSearch('/')).toEqual({ kind: null, type: null, text: '', partial: '' });
     expect(matchCommands('bo').map((c) => c.cmd)).toEqual(['book']);
-    expect(matchCommands('').map((c) => c.cmd)).toEqual(['game', 'movie', 'tv', 'book']);
+    expect(matchCommands('').map((c) => c.cmd)).toEqual(['game', 'movie', 'tv', 'anime', 'book', 'manga']);
     expect(matchCommands('s').map((c) => c.cmd)).toEqual(['tv']);
   });
 
+  it('/anime and /manga search AniList and live in TV shows and Books', () => {
+    expect(parseSearch('/anime frieren')).toEqual({ kind: 'ANIME', type: 'TV', text: 'frieren', partial: null });
+    expect(parseSearch('/Manga berserk')).toEqual({ kind: 'MANGA', type: 'BOOK', text: 'berserk', partial: null });
+    expect(matchCommands('a').map((c) => c.cmd)).toEqual(['anime']);
+    expect(matchCommands('m').map((c) => c.cmd)).toEqual(['movie', 'manga']);
+  });
+
   it('no command means a plain library search with no provider type (never defaults to games)', () => {
-    expect(parseSearch('red rising')).toEqual({ type: null, text: 'red rising', partial: null });
-    expect(parseSearch('/xyz red rising')).toEqual({ type: null, text: 'red rising', partial: null });
+    expect(parseSearch('red rising')).toEqual({ kind: null, type: null, text: 'red rising', partial: null });
+    expect(parseSearch('/xyz red rising')).toEqual({ kind: null, type: null, text: 'red rising', partial: null });
   });
 });

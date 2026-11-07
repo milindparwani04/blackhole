@@ -1,11 +1,19 @@
 import { useEffect, useRef, useState } from 'react';
-import { MEDIA_TYPES, type MediaType, type MovieRatings, type SearchResponse, type SearchResult } from '../../../../packages/shared/src/index';
+import {
+  kindType,
+  SEARCH_KINDS,
+  type MediaType,
+  type MovieRatings,
+  type SearchKind,
+  type SearchResponse,
+  type SearchResult,
+} from '../../../../packages/shared/src/index';
 import { api, ApiError, type AddPayload } from '../api';
 import { useApp } from '../context';
 import { Cover, MovieRatingBadges } from '../components/Bits';
 import { useSettings } from '../settings';
 import { CloseIcon, SearchIcon, TypeIcon } from '../components/Icons';
-import { TYPE_LABEL } from '../format';
+import { KIND_LABEL, KIND_SEARCH, TYPE_LABEL } from '../format';
 
 const PLATFORM_CHIPS = ['PS5', 'PS4', 'PC', 'Switch', 'Xbox Series'];
 
@@ -16,9 +24,12 @@ interface Pick {
   error?: string;
 }
 
-export function AddModal({ initialType, initialQuery, onClose }: { initialType: MediaType; initialQuery: string; onClose: () => void }) {
+export function AddModal({ initialKind, initialQuery, onClose }: { initialKind: SearchKind; initialQuery: string; onClose: () => void }) {
   const { select, bump, notify } = useApp();
-  const [type, setType] = useState<MediaType>(initialType);
+  // Anime and manga are their own tabs (AniList search) but add to TV shows and Books.
+  const [kind, setKind] = useState<SearchKind>(initialKind);
+  const type = kindType(kind);
+  const anilist = kind === 'ANIME' || kind === 'MANGA';
   const [q, setQ] = useState(initialQuery);
   const [res, setRes] = useState<SearchResponse | null>(null);
   const [loading, setLoading] = useState(false);
@@ -54,7 +65,7 @@ export function AddModal({ initialType, initialQuery, onClose }: { initialType: 
   // Each search gets a number; only the latest one may show its results (switching type mid-search
   // must not let the old type's results land late).
   const searchSeq = useRef(0);
-  async function search(t = type, query = q) {
+  async function search(t = kind, query = q) {
     if (query.trim().length < 2) return;
     const seq = ++searchSeq.current;
     setLoading(true);
@@ -71,9 +82,9 @@ export function AddModal({ initialType, initialQuery, onClose }: { initialType: 
   useEffect(() => {
     setRes(null);
     setPicks(new Map());
-    if (initialQuery && q.trim().length >= 2) search(type, q);
+    if (initialQuery && q.trim().length >= 2) search(kind, q);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [type]);
+  }, [kind]);
 
   const key = (r: SearchResult) => `${r.provider}:${r.external_id}`;
   const addable = (res?.results ?? []).filter((r) => !r.already_in_pit);
@@ -186,9 +197,9 @@ export function AddModal({ initialType, initialQuery, onClose }: { initialType: 
           </button>
         </div>
         <div className="type-tabs" role="tablist">
-          {MEDIA_TYPES.map((t) => (
-            <button key={t} role="tab" aria-selected={t === type} className={t === type ? 'on' : ''} onClick={() => setType(t)} disabled={!!progress}>
-              <TypeIcon type={t} size={16} /> {TYPE_LABEL[t].one}
+          {SEARCH_KINDS.map((k) => (
+            <button key={k} role="tab" aria-selected={k === kind} className={k === kind ? 'on' : ''} onClick={() => setKind(k)} disabled={!!progress}>
+              <TypeIcon type={kindType(k)} size={16} /> {KIND_LABEL[k]}
             </button>
           ))}
         </div>
@@ -202,13 +213,7 @@ export function AddModal({ initialType, initialQuery, onClose }: { initialType: 
         >
           <label className="search-box grow">
             <SearchIcon />
-            <input
-              ref={qInput}
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              placeholder={`Search ${TYPE_LABEL[type].many.toLowerCase()}…`}
-              aria-label="Search providers"
-            />
+            <input ref={qInput} value={q} onChange={(e) => setQ(e.target.value)} placeholder={`Search ${KIND_SEARCH[kind]}…`} aria-label="Search providers" />
           </label>
           <button className="btn primary" disabled={loading || q.trim().length < 2}>
             {loading ? 'Searching…' : 'Search'}
@@ -285,7 +290,14 @@ export function AddModal({ initialType, initialQuery, onClose }: { initialType: 
               {res.attribution && <div className="source-line">{res.attribution}</div>}
             </div>
           )}
-          <ManualForm key={type} type={type} initialTitle={q} busy={busy === 'manual'} onSubmit={addManual} />
+          {anilist ? (
+            <p className="muted sm">
+              {kind === 'ANIME' ? 'Anime' : 'Manga'} added here come from AniList and go into {TYPE_LABEL[type].many}, where the{' '}
+              {kind === 'ANIME' ? 'anime' : 'manga'} filter picks them out. Not on AniList? Add it manually from the {KIND_LABEL[type]} tab.
+            </p>
+          ) : (
+            <ManualForm key={type} type={type} initialTitle={q} busy={busy === 'manual'} onSubmit={addManual} />
+          )}
         </div>
 
         {picks.size > 0 && (

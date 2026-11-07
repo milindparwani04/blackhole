@@ -1,5 +1,5 @@
 import { createContext, useContext } from 'react';
-import type { MediaType } from '../../../packages/shared/src/index';
+import type { SearchKind } from '../../../packages/shared/src/index';
 
 export interface AppCtx {
   /** Bumped after every mutation so lists/stats reload. */
@@ -7,7 +7,8 @@ export interface AppCtx {
   bump: () => void;
   selectedId: string | null;
   select: (id: string | null) => void;
-  openAdd: (type?: MediaType, query?: string) => void;
+  /** Opens the Add dialog on a tab (anime/manga search AniList); defaults to the current library's type. */
+  openAdd: (kind?: SearchKind, query?: string) => void;
   notify: (message: string, opts?: { eventId?: string | null; error?: boolean }) => void;
 }
 

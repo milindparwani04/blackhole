@@ -3,6 +3,12 @@
 export const MEDIA_TYPES = ['GAME', 'MOVIE', 'TV', 'BOOK'] as const;
 export type MediaType = (typeof MEDIA_TYPES)[number];
 
+/** What the Add dialog can search: the four media types plus anime (→ TV) and manga (→ Books) from AniList. */
+export const SEARCH_KINDS = ['GAME', 'MOVIE', 'TV', 'ANIME', 'BOOK', 'MANGA'] as const;
+export type SearchKind = (typeof SEARCH_KINDS)[number];
+/** The library type a search kind adds to. */
+export const kindType = (k: SearchKind): MediaType => (k === 'ANIME' ? 'TV' : k === 'MANGA' ? 'BOOK' : k);
+
 export const STATUSES = ['PLANNED', 'IN_PROGRESS', 'PAUSED', 'COMPLETED', 'DROPPED'] as const;
 export type Status = (typeof STATUSES)[number];
 
